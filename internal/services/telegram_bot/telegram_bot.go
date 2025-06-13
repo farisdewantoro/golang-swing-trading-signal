@@ -673,23 +673,6 @@ func (t *TelegramBotService) Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Remove webhook with timeout
-	done := make(chan error, 1)
-	go func() {
-		if err := t.bot.RemoveWebhook(); err != nil {
-			t.logger.WithError(err).Error("Failed to remove webhook")
-		}
-		done <- nil
-	}()
-
-	// Wait for webhook removal with timeout
-	select {
-	case <-done:
-		t.logger.Info("Webhook removed successfully")
-	case <-ctx.Done():
-		t.logger.Warn("Timeout while removing webhook, proceeding with shutdown")
-	}
-
 	// Stop the bot with timeout
 	stopDone := make(chan error, 1)
 	go func() {
