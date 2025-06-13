@@ -29,22 +29,20 @@ RUN apk --no-cache add ca-certificates tzdata
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
-# Set working directory
-WORKDIR /root/
+# Set working directory to a location the user can access
+WORKDIR /app
 
 # Copy the binary from builder stage
 COPY --from=builder /app/main .
 
-
-# Change ownership of the binary
-RUN chown appuser:appgroup /root/main
+# Change ownership of the binary and working directory
+RUN chown -R appuser:appgroup /app
 
 # Switch to non-root user
 USER appuser
 
 # Expose port
 EXPOSE 8080
-
 
 # Run the application
 CMD ["./main"] 
