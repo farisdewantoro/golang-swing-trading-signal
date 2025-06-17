@@ -266,6 +266,8 @@ KRITERIA PENTING:
 - Cut loss berdasarkan support levels yang kuat
 - Max holding period 1-5 hari berdasarkan trend strength
 - Pertimbangkan Data Ringkasan Analisa Berita yang diberikan (JIKA ADA NEWS SUMMARY)
+- Ulangi analisis Anda jika risk/reward tidak memenuhi. Jangan berikan sinyal BUY jika potensi kerugian lebih besar daripada potensi keuntungan. Ketatkan logika manajemen risiko seperti layaknya seorang trader profesional.
+
 
 Return response dalam format JSON:
 {
@@ -415,6 +417,8 @@ KRITERIA PENTING:
 - CUT_LOSS jika risk meningkat atau target tidak realistis dalam sisa %d hari
 - Evaluasi apakah target price masih realistis dalam sisa waktu
 - Pertimbangkan Data Ringkasan Analisa Berita yang diberikan (JIKA ADA NEWS SUMMARY)
+- Ulangi analisis Anda jika risk/reward tidak memenuhi. Jangan berikan sinyal BUY jika potensi kerugian lebih besar daripada potensi keuntungan. Ketatkan logika manajemen risiko seperti layaknya seorang trader profesional.
+
 
 Return response dalam format JSON:
 {
