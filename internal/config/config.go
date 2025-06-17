@@ -53,7 +53,7 @@ func LoadConfig() (*Config, error) {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Failed to read config file: %v", err)
+		log.Println("Failed to read config file .env config try read from environment variables")
 	}
 
 	// Parse stock list from comma-separated string
