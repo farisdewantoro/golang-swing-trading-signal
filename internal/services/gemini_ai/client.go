@@ -2,6 +2,7 @@ package gemini_ai
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,31 +12,55 @@ import (
 
 	"golang-swing-trading-signal/internal/config"
 	"golang-swing-trading-signal/internal/models"
+
+	"golang-swing-trading-signal/pkg/ratelimit"
+
+	"github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
+	"google.golang.org/genai"
 )
 
 type Client struct {
-	config *config.GeminiConfig
-	client *http.Client
+	config         *config.GeminiConfig
+	client         *http.Client
+	requestLimiter *rate.Limiter
+	tokenLimiter   *ratelimit.TokenLimiter
+	logger         *logrus.Logger
+	geminiClient   *genai.Client
 }
 
-func NewClient(cfg *config.GeminiConfig) *Client {
+func NewClient(cfg *config.GeminiConfig, logger *logrus.Logger, geminiClient *genai.Client) *Client {
+	secondsPerRequest := time.Minute / time.Duration(cfg.MaxRequestPerMinute)
+	requestLimiter := rate.NewLimiter(rate.Every(secondsPerRequest), 1)
+
+	tokenLimiter := ratelimit.NewTokenLimiter(cfg.MaxTokenPerMinute)
+
 	return &Client{
 		config: cfg,
 		client: &http.Client{
 			Timeout: 60 * time.Second,
 		},
+		requestLimiter: requestLimiter,
+		tokenLimiter:   tokenLimiter,
+		logger:         logger,
+		geminiClient:   geminiClient,
 	}
 }
 
-func (c *Client) AnalyzeStock(symbol string, ohlcvData []models.OHLCVData, dataInfo models.DataInfo) (*models.IndividualAnalysisResponse, error) {
-	prompt := c.buildIndividualAnalysisPrompt(symbol, ohlcvData, dataInfo)
+func (c *Client) AnalyzeStock(ctx context.Context,
+	symbol string,
+	ohlcvData []models.OHLCVData,
+	dataInfo models.DataInfo,
+	summary *models.StockNewsSummaryEntity,
+) (*models.IndividualAnalysisResponse, error) {
+	prompt := c.buildIndividualAnalysisPrompt(ctx, symbol, ohlcvData, dataInfo, summary)
 
-	response, err := c.sendRequest(prompt)
+	response, err := c.sendRequest(ctx, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get analysis from Gemini AI: %w", err)
 	}
 
-	jsonStr, err := extractJSONFromText(response)
+	jsonStr, err := extractJSONFromText(ctx, response)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract JSON from Gemini AI response: %w", err)
 	}
@@ -50,15 +75,20 @@ func (c *Client) AnalyzeStock(symbol string, ohlcvData []models.OHLCVData, dataI
 	return &analysis, nil
 }
 
-func (c *Client) MonitorPosition(request models.PositionMonitoringRequest, ohlcvData []models.OHLCVData, dataInfo models.DataInfo) (*models.PositionMonitoringResponse, error) {
-	prompt := c.buildPositionMonitoringPrompt(request, ohlcvData, dataInfo)
+func (c *Client) MonitorPosition(ctx context.Context,
+	request models.PositionMonitoringRequest,
+	ohlcvData []models.OHLCVData,
+	dataInfo models.DataInfo,
+	summary *models.StockNewsSummaryEntity,
+) (*models.PositionMonitoringResponse, error) {
+	prompt := c.buildPositionMonitoringPrompt(ctx, request, ohlcvData, dataInfo, summary)
 
-	response, err := c.sendRequest(prompt)
+	response, err := c.sendRequest(ctx, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get position analysis from Gemini AI: %w", err)
 	}
 
-	jsonStr, err := extractJSONFromText(response)
+	jsonStr, err := extractJSONFromText(ctx, response)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract JSON from Gemini AI response: %w", err)
 	}
@@ -76,7 +106,38 @@ func (c *Client) MonitorPosition(request models.PositionMonitoringRequest, ohlcv
 	return &analysis, nil
 }
 
-func (c *Client) sendRequest(prompt string) (string, error) {
+func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error) {
+	contents := []*genai.Content{
+		genai.NewContentFromText(prompt, "user"),
+	}
+
+	tokenCount, err := c.geminiClient.Models.CountTokens(ctx, c.config.Model, contents, nil)
+
+	if err != nil {
+		c.logger.Error("failed to count tokens", logrus.Fields{
+			"error": err,
+		})
+		return "", fmt.Errorf("failed to count tokens: %w", err)
+	}
+
+	if err := c.tokenLimiter.Wait(ctx, int(tokenCount.TotalTokens)); err != nil {
+		return "", fmt.Errorf("failed to wait for token limit: %w", err)
+	}
+	if err := c.requestLimiter.Wait(ctx); err != nil {
+		return "", fmt.Errorf("failed to wait for request limit: %w", err)
+	}
+
+	if int(tokenCount.TotalTokens) > c.config.MaxTokenPerMinute/2 {
+		c.logger.Warn("gemini ai token exceeded half limit", logrus.Fields{
+			"remaining_tokens": tokenCount.TotalTokens,
+			"max_tokens":       c.config.MaxTokenPerMinute,
+		})
+	}
+
+	c.logger.Debug("Sending request to Gemini AI", logrus.Fields{
+		"prompt": prompt,
+	})
+
 	// Build request URL
 	requestURL := fmt.Sprintf("%s/%s:generateContent?key=%s",
 		c.config.BaseURL, c.config.Model, c.config.APIKey)
@@ -114,7 +175,7 @@ func (c *Client) sendRequest(prompt string) (string, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("Gemini AI API returned status code %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("gemini AI API returned status code %d: %s", resp.StatusCode, string(body))
 	}
 
 	// Read response
@@ -142,11 +203,47 @@ func (c *Client) sendRequest(prompt string) (string, error) {
 	return candidate.Content.Parts[0].Text, nil
 }
 
-func (c *Client) buildIndividualAnalysisPrompt(symbol string, ohlcvData []models.OHLCVData, dataInfo models.DataInfo) string {
+func (c *Client) buildIndividualAnalysisPrompt(
+	ctx context.Context,
+	symbol string,
+	ohlcvData []models.OHLCVData,
+	dataInfo models.DataInfo,
+	summary *models.StockNewsSummaryEntity,
+) string {
 	// Convert OHLCV data to JSON string
 	ohlcvJSON, _ := json.Marshal(ohlcvData)
 
+	// Ringkasan sentimen dari berita
+	newsSummaryText := ""
+	if summary != nil {
+		newsSummaryText = fmt.Sprintf(`Berikut adalah ringkasan sentimen berita untuk saham %s selama periode %s hingga %s:
+
+- Sentimen utama: %s
+- Dampak terhadap harga: %s
+- Key issues: %s
+- Ringkasan singkat: %s
+- Confidence score: %.2f
+- Saran tindakan: %s
+- Alasan: %s
+
+Gunakan ringkasan ini untuk mempertimbangkan konteks eksternal (berita) dalam analisis berikut:
+`,
+			summary.StockCode,
+			summary.SummaryStart.Format("2006-01-02"),
+			summary.SummaryEnd.Format("2006-01-02"),
+			summary.SummarySentiment,
+			summary.SummaryImpact,
+			strings.Join(summary.KeyIssues, ", "),
+			summary.ShortSummary,
+			summary.SummaryConfidenceScore,
+			summary.SuggestedAction,
+			summary.Reasoning,
+		)
+	}
+
 	prompt := fmt.Sprintf(`Anda adalah analis teknikal saham Indonesia yang ahli. Analisis data OHLC berikut untuk saham %s dan berikan rekomendasi trading swing (1-5 hari).
+
+  %s
 
 Data OHLC %s:
 %s
@@ -167,7 +264,8 @@ KRITERIA PENTING:
 - BUY signal hanya jika risk-reward ratio ≥ 1:3
 - Target price harus realistis berdasarkan resistance levels
 - Cut loss berdasarkan support levels yang kuat
-- Max holding period 1-7 hari berdasarkan trend strength
+- Max holding period 1-5 hari berdasarkan trend strength
+- Pertimbangkan Data Ringkasan Analisa Berita yang diberikan (JIKA ADA NEWS SUMMARY)
 
 Return response dalam format JSON:
 {
@@ -231,15 +329,54 @@ Return response dalam format JSON:
       "Support dan resistance teridentifikasi",
       "Risk/reward ratio menguntungkan"
     ]
+  },
+  "news_summary":{ (JIKA ADA NEWS SUMMARY)
+    "confidence_score": 0.0 - 1.0,
+    "sentiment": "positive, negative, neutral, mixed",
+    "impact": "bullish, bearish, sideways"
+    "key_issues": ["issue1", "issue2", "issue3"]
   }
-}`, symbol, dataInfo.Range, string(ohlcvJSON), symbol, time.Now().Format("2006-01-02T15:04:05-07:00"))
+}`, symbol, newsSummaryText, dataInfo.Range, string(ohlcvJSON), symbol, time.Now().Format("2006-01-02T15:04:05-07:00"))
 
 	return prompt
 }
 
-func (c *Client) buildPositionMonitoringPrompt(request models.PositionMonitoringRequest, ohlcvData []models.OHLCVData, dataInfo models.DataInfo) string {
+func (c *Client) buildPositionMonitoringPrompt(ctx context.Context,
+	request models.PositionMonitoringRequest,
+	ohlcvData []models.OHLCVData,
+	dataInfo models.DataInfo,
+	summary *models.StockNewsSummaryEntity,
+) string {
 	// Convert OHLCV data to JSON string
 	ohlcvJSON, _ := json.Marshal(ohlcvData)
+
+	// Ringkasan sentimen dari berita
+	newsSummaryText := ""
+	if summary != nil {
+		newsSummaryText = fmt.Sprintf(`Berikut adalah ringkasan sentimen berita untuk saham %s selama periode %s hingga %s:
+
+- Sentimen utama: %s
+- Dampak terhadap harga: %s
+- Key issues: %s
+- Ringkasan singkat: %s
+- Confidence score: %.2f
+- Saran tindakan: %s
+- Alasan: %s
+
+Gunakan ringkasan ini untuk mempertimbangkan konteks eksternal (berita) dalam analisis teknikal berikut.
+`,
+			summary.StockCode,
+			summary.SummaryStart.Format("2006-01-02"),
+			summary.SummaryEnd.Format("2006-01-02"),
+			summary.SummarySentiment,
+			summary.SummaryImpact,
+			strings.Join(summary.KeyIssues, ", "),
+			summary.ShortSummary,
+			summary.SummaryConfidenceScore,
+			summary.SuggestedAction,
+			summary.Reasoning,
+		)
+	}
 
 	// Calculate remaining holding period
 	positionAgeDays := int(time.Since(request.BuyTime).Hours() / 24)
@@ -249,6 +386,7 @@ func (c *Client) buildPositionMonitoringPrompt(request models.PositionMonitoring
 	}
 
 	prompt := fmt.Sprintf(`Anda adalah analis teknikal saham Indonesia yang ahli dalam swing trading. Analisis posisi trading yang sedang berjalan dan berikan rekomendasi HOLD/SELL/CUT_LOSS.
+%s
 
 Data posisi trading:
 - Symbol: %s
@@ -276,11 +414,11 @@ KRITERIA PENTING:
 - SELL jika trend berubah atau technical indicators memburuk
 - CUT_LOSS jika risk meningkat atau target tidak realistis dalam sisa %d hari
 - Evaluasi apakah target price masih realistis dalam sisa waktu
+- Pertimbangkan Data Ringkasan Analisa Berita yang diberikan (JIKA ADA NEWS SUMMARY)
 
 Return response dalam format JSON:
 {
   "symbol": "%s",
-  "current_price": 9100,
   "max_holding_period_days": %d,
   "recommendation": {
     "action": "HOLD|SELL|CUT_LOSS",
@@ -356,8 +494,14 @@ Return response dalam format JSON:
       "Support dan resistance teridentifikasi",
       "Risk/reward ratio menguntungkan"
     ]
+  },
+  "news_summary":{ (JIKA ADA NEWS SUMMARY)
+    "confidence_score": 0.0 - 1.0,
+    "sentiment": "positive, negative, neutral, mixed",
+    "impact": "bullish, bearish, sideways"
+    "key_issues": ["issue1", "issue2", "issue3"]
   }
-}`, request.Symbol, request.BuyPrice, request.BuyTime.Format("2006-01-02T15:04:05-07:00"),
+}`, request.Symbol, newsSummaryText, request.BuyPrice, request.BuyTime.Format("2006-01-02T15:04:05-07:00"),
 		request.MaxHoldingPeriodDays, positionAgeDays, remainingDays, dataInfo.Range, string(ohlcvJSON),
 		remainingDays, request.Symbol, request.MaxHoldingPeriodDays,
 		remainingDays, remainingDays, remainingDays, remainingDays, remainingDays)
@@ -366,7 +510,7 @@ Return response dalam format JSON:
 }
 
 // extractJSONFromText extracts JSON object from text that may contain additional content
-func extractJSONFromText(text string) (string, error) {
+func extractJSONFromText(ctx context.Context, text string) (string, error) {
 	start := strings.Index(text, "{")
 	end := strings.LastIndex(text, "}")
 	if start == -1 || end == -1 || start > end {

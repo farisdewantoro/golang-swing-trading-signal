@@ -10,14 +10,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/genai"
 
 	"golang-swing-trading-signal/internal/api/handlers"
 	"golang-swing-trading-signal/internal/api/routes"
 	"golang-swing-trading-signal/internal/config"
+	"golang-swing-trading-signal/internal/repository"
 	"golang-swing-trading-signal/internal/services/gemini_ai"
 	"golang-swing-trading-signal/internal/services/telegram_bot"
 	"golang-swing-trading-signal/internal/services/trading_analysis"
 	"golang-swing-trading-signal/internal/services/yahoo_finance"
+	"golang-swing-trading-signal/pkg/postgres"
 )
 
 func main() {
@@ -36,11 +39,6 @@ func main() {
 	if cfg.Server.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
-
-	// Initialize services
-	yahooClient := yahoo_finance.NewClient(&cfg.Yahoo)
-	geminiClient := gemini_ai.NewClient(&cfg.Gemini)
-	analyzer := trading_analysis.NewAnalyzer(yahooClient, geminiClient)
 
 	// Initialize router
 	router := gin.New()
@@ -61,17 +59,34 @@ func main() {
 		c.Next()
 	})
 
+	// Initialize database
+	db, err := postgres.NewDB(cfg.Database)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to initialize database")
+	}
+	if sqlDB, err := db.DB.DB(); err == nil {
+		defer sqlDB.Close()
+	}
+
+	// Initialize repositories
+	stockNewsSummaryRepo := repository.NewStockNewsSummaryRepository(db.DB)
+	genClient, err := genai.NewClient(context.Background(), &genai.ClientConfig{
+		APIKey: cfg.Gemini.APIKey,
+	})
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to initialize Gemini client")
+	}
+
+	// Initialize services
+	yahooClient := yahoo_finance.NewClient(&cfg.Yahoo)
+	geminiClient := gemini_ai.NewClient(&cfg.Gemini, logger, genClient)
+	analyzer := trading_analysis.NewAnalyzer(yahooClient, geminiClient, logger, stockNewsSummaryRepo)
+
 	// Initialize Telegram bot service
 	var telegramService *telegram_bot.TelegramBotService
-	if cfg.Telegram.BotToken != "" {
-		telegramService, err = telegram_bot.NewTelegramBotService(&cfg.Telegram, &cfg.Trading, logger, analyzer, router)
-		if err != nil {
-			logger.WithError(err).Warn("Failed to initialize Telegram bot service, continuing without Telegram integration")
-		} else {
-			logger.Info("Telegram bot service initialized successfully")
-		}
-	} else {
-		logger.Warn("Telegram bot token not configured, skipping Telegram integration")
+	telegramService, err = telegram_bot.NewTelegramBotService(&cfg.Telegram, &cfg.Trading, logger, analyzer, router)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to initialize Telegram bot service, continuing without Telegram integration")
 	}
 
 	// Initialize handlers

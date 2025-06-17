@@ -12,6 +12,7 @@ import (
 	"golang-swing-trading-signal/internal/models"
 	"golang-swing-trading-signal/internal/services/telegram_bot"
 	"golang-swing-trading-signal/internal/services/trading_analysis"
+	"golang-swing-trading-signal/internal/utils"
 )
 
 type TradingHandler struct {
@@ -42,19 +43,8 @@ func (h *TradingHandler) AnalyzeStock(c *gin.Context) {
 		return
 	}
 
-	// Validate symbol
-	if err := h.analyzer.ValidateSymbol(symbol); err != nil {
-		h.logger.WithError(err).WithField("symbol", symbol).Error("Invalid symbol")
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Error:   "INVALID_SYMBOL",
-			Message: err.Error(),
-			Code:    http.StatusBadRequest,
-		})
-		return
-	}
-
 	// Perform analysis
-	analysis, err := h.analyzer.AnalyzeStock(symbol)
+	analysis, err := h.analyzer.AnalyzeStock(c, symbol, "", "")
 	if err != nil {
 		h.logger.WithError(err).WithField("symbol", symbol).Error("Failed to analyze stock")
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -94,7 +84,7 @@ func (h *TradingHandler) MonitorPosition(c *gin.Context) {
 	}
 
 	// Validate symbol
-	if err := h.analyzer.ValidateSymbol(request.Symbol); err != nil {
+	if err := h.analyzer.ValidateSymbol(c, request.Symbol); err != nil {
 		h.logger.WithError(err).WithField("symbol", request.Symbol).Error("Invalid symbol")
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Error:   "INVALID_SYMBOL",
@@ -105,7 +95,7 @@ func (h *TradingHandler) MonitorPosition(c *gin.Context) {
 	}
 
 	// Perform position monitoring
-	analysis, err := h.analyzer.MonitorPosition(request)
+	analysis, err := h.analyzer.MonitorPosition(c, request)
 	if err != nil {
 		h.logger.WithError(err).WithField("symbol", request.Symbol).Error("Failed to monitor position")
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -154,7 +144,7 @@ func (h *TradingHandler) validatePositionRequest(request *models.PositionMonitor
 		return fmt.Errorf("buy time is required")
 	}
 
-	if request.BuyTime.After(time.Now()) {
+	if request.BuyTime.After(utils.TimeNowWIB()) {
 		return fmt.Errorf("buy time cannot be in the future")
 	}
 
@@ -173,7 +163,7 @@ func (h *TradingHandler) validatePositionRequest(request *models.PositionMonitor
 func (h *TradingHandler) AnalyzeAllStocks(c *gin.Context) {
 
 	// Perform analysis on all stocks
-	summary, err := h.analyzer.AnalyzeAllStocks(h.cfg.Trading.StockList)
+	summary, err := h.analyzer.AnalyzeAllStocks(c, h.cfg.Trading.StockList)
 	if err != nil {
 		h.logger.WithError(err).Error("Failed to analyze all stocks")
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
@@ -186,4 +176,52 @@ func (h *TradingHandler) AnalyzeAllStocks(c *gin.Context) {
 
 	h.logger.WithField("total_stocks", summary.TotalStocks).Info("All stocks analysis completed successfully")
 	c.JSON(http.StatusOK, summary)
+}
+
+// MonitorPosition handles POST /bulk-monitor-position
+func (h *TradingHandler) BulkMonitorPosition(c *gin.Context) {
+	var request []models.PositionMonitoringRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.logger.WithError(err).Error("Failed to bind request body")
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error:   "INVALID_REQUEST",
+			Message: "Invalid request body: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// Validate request
+	for _, req := range request {
+		if err := h.validatePositionRequest(&req); err != nil {
+			h.logger.WithError(err).WithField("symbol", req.Symbol).Error("Invalid position request")
+			c.JSON(http.StatusBadRequest, models.ErrorResponse{
+				Error:   "INVALID_REQUEST",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+	}
+
+	go func() {
+		analysis, err := h.analyzer.BulkMonitorPosition(c, request)
+		if len(err) > 0 {
+			for _, e := range err {
+				h.logger.WithError(e).Error("Failed to monitor position")
+			}
+		}
+
+		errInner := h.telegramService.SendBulkPositionMonitoringNotification(analysis)
+		if errInner != nil {
+			h.logger.WithError(errInner).Error("Failed to send bulk position monitoring notification")
+		}
+
+	}()
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Position monitoring started",
+		"status":  http.StatusOK,
+	})
+
 }

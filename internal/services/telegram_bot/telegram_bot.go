@@ -17,6 +17,7 @@ import (
 	"golang-swing-trading-signal/internal/config"
 	"golang-swing-trading-signal/internal/models"
 	"golang-swing-trading-signal/internal/services/trading_analysis"
+	"golang-swing-trading-signal/internal/utils"
 )
 
 type TelegramBotService struct {
@@ -219,25 +220,20 @@ func (t *TelegramBotService) handleHelp(c telebot.Context) error {
 	message := `📊 Swing Trading Signal Bot Help
 
 Commands:
-/analyze <symbol> - Analyze a specific stock
-/monitor <symbol> <buy_price> <buy_date> <max_days> - Monitor a trading position
+/analyze <symbol> <interval:optional> <period:optional> - Analyze a specific stock
+/monitor <symbol> <buy_price> <buy_date> <max_days> <interval:optional> <period:optional> - Monitor a trading position
 /buylist - Analyze all stocks from config and show buy list
 /help - Show this help message
 
 Examples:
-/analyze AAPL
-/analyze GOOGL
-/analyze TSLA
+/analyze BBCA 1d 2m
+/analyze BBRI
 
-/monitor AAPL 150.00 2024-01-15 5
-/monitor GOOGL 2800.00 2024-01-10 7
+/monitor ANTM 150.00 2024-01-15 5 1d 2m
+/monitor BBRI 2800.00 2024-01-10 7
 
 /buylist - Get buy list summary
 
-Or simply send a stock symbol:
-AAPL
-GOOGL
-TSLA
 
 The bot will provide:
 • Technical analysis
@@ -245,7 +241,9 @@ The bot will provide:
 • Trading recommendations
 • Confidence levels
 • Position monitoring with P&L tracking
-• Buy list analysis for all configured stocks`
+• Buy list analysis for all configured stocks
+• Stock news summary analysis
+`
 
 	return c.Send(message)
 }
@@ -256,8 +254,18 @@ func (t *TelegramBotService) handleAnalyze(c telebot.Context) error {
 		return c.Send("❌ Please provide a stock symbol.\nUsage: /analyze <symbol>\nExample: /analyze AAPL")
 	}
 
+	interval := "1d"
+	if len(args) > 1 {
+		interval = args[1]
+	}
+
+	period := "2m"
+	if len(args) > 2 {
+		period = args[2]
+	}
+
 	symbol := strings.ToUpper(args[0])
-	return t.analyzeStock(c, symbol)
+	return t.analyzeStock(c, symbol, interval, period)
 }
 
 func (t *TelegramBotService) handleTextMessage(c telebot.Context) error {
@@ -268,12 +276,10 @@ func (t *TelegramBotService) handleTextMessage(c telebot.Context) error {
 		return nil // Let other handlers deal with commands
 	}
 
-	// Assume it's a stock symbol
-	symbol := strings.ToUpper(text)
-	return t.analyzeStock(c, symbol)
+	return t.handleHelp(c)
 }
 
-func (t *TelegramBotService) analyzeStock(c telebot.Context, symbol string) error {
+func (t *TelegramBotService) analyzeStock(c telebot.Context, symbol string, interval string, period string) error {
 	// Send initial message
 	err := c.Send(fmt.Sprintf("🔍 Analyzing %s... Please wait.", symbol))
 	if err != nil {
@@ -292,7 +298,7 @@ func (t *TelegramBotService) analyzeStock(c telebot.Context, symbol string) erro
 		}
 
 		// Perform analysis
-		analysis, err := t.analyzer.AnalyzeStock(symbol)
+		analysis, err := t.analyzer.AnalyzeStock(t.ctx, symbol, interval, period)
 		if err != nil {
 			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to analyze stock")
 
@@ -349,6 +355,12 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 	sb.WriteString(fmt.Sprintf("RSI: %.2f (%s)\n", analysis.TechnicalAnalysis.RSI, analysis.TechnicalAnalysis.RSISignal))
 	sb.WriteString(fmt.Sprintf("MACD: %s | Momentum: %s\n", analysis.TechnicalAnalysis.MACDSignal, analysis.TechnicalAnalysis.Momentum))
 	sb.WriteString(fmt.Sprintf("Volume: %s | Technical Score: %d/100\n\n", analysis.TechnicalAnalysis.VolumeTrend, analysis.TechnicalAnalysis.TechnicalScore))
+
+	// News Summary
+	sb.WriteString("📰 <b>News Summary Analysis:</b>\n")
+	sb.WriteString(fmt.Sprintf("Confidence Score: %.2f\n", analysis.NewsSummary.ConfidenceScore))
+	sb.WriteString(fmt.Sprintf("Sentiment: %s\n", analysis.NewsSummary.Sentiment))
+	sb.WriteString(fmt.Sprintf("Impact: %s\n", analysis.NewsSummary.Impact))
 
 	// Key Levels
 	sb.WriteString("🎯 <b>Key Levels:</b>\n")
@@ -418,6 +430,12 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 				sb.WriteString(fmt.Sprintf("• %s\n", insight))
 			}
 		}
+
+		if len(analysis.NewsSummary.KeyIssues) > 0 {
+			for _, issue := range analysis.NewsSummary.KeyIssues {
+				sb.WriteString(fmt.Sprintf("• %s\n", issue))
+			}
+		}
 		sb.WriteString("\n")
 	}
 
@@ -432,8 +450,8 @@ func (t *TelegramBotService) handleMonitorPosition(c telebot.Context) error {
 	args := c.Args()
 	if len(args) < 4 {
 		return c.Send(`❌ Please provide all required parameters.
-Usage: /monitor <symbol> <buy_price> <buy_date> <max_days>
-Example: /monitor AAPL 150.00 2024-01-15 5
+Usage: /monitor <symbol> <buy_price> <buy_date> <max_days> <interval :optional> <period_start :optional> <period_end :optional>
+Example: /monitor AAPL 150.00 2024-01-15 5 1d 2m
 
 Parameters:
 - symbol: Stock symbol (e.g., AAPL)
@@ -462,6 +480,17 @@ Parameters:
 		return c.Send("❌ Invalid max holding period. Please provide a positive number.")
 	}
 
+	interval := "1d"
+
+	if len(args) > 4 {
+		interval = args[4]
+	}
+
+	period := "2m"
+	if len(args) > 5 {
+		period = args[5]
+	}
+
 	// Send initial message
 	err = c.Send(fmt.Sprintf("🔍 Monitoring position for %s... Please wait.", symbol))
 	if err != nil {
@@ -485,10 +514,12 @@ Parameters:
 			BuyPrice:             buyPrice,
 			BuyTime:              buyDate,
 			MaxHoldingPeriodDays: maxDays,
+			Interval:             interval,
+			Period:               period,
 		}
 
 		// Perform position monitoring
-		analysis, err := t.analyzer.MonitorPosition(request)
+		analysis, err := t.analyzer.MonitorPosition(t.ctx, request)
 		if err != nil {
 			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to monitor position")
 
@@ -557,6 +588,32 @@ func (t *TelegramBotService) SendPositionMonitoringNotification(position *models
 	return nil
 }
 
+func (t *TelegramBotService) SendBulkPositionMonitoringNotification(positions []models.PositionMonitoringResponse) error {
+	if t.config.ChatID == "" {
+		t.logger.Warn("Telegram chat ID not configured, skipping notification")
+		return nil
+	}
+
+	chatID, err := strconv.ParseInt(t.config.ChatID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid chat ID: %w", err)
+	}
+
+	messages := t.FormatBulkPositionMonitoringMessage(positions)
+
+	for _, message := range messages {
+		_, err = t.bot.Send(&telebot.Chat{ID: chatID}, message, &telebot.SendOptions{
+			ParseMode: telebot.ModeHTML,
+		})
+		if err != nil {
+			t.logger.WithError(err).Error("Failed to send position monitoring notification")
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.PositionMonitoringResponse) string {
 	var sb strings.Builder
 
@@ -576,6 +633,12 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 	sb.WriteString(fmt.Sprintf("MACD: %s | Volume: %s\n", position.Recommendation.TechnicalAnalysis.MACDSignal, position.Recommendation.TechnicalAnalysis.VolumeTrend))
 	sb.WriteString(fmt.Sprintf("Support: $%.2f | Resistance: $%.2f\n", position.Recommendation.TechnicalAnalysis.SupportLevel, position.Recommendation.TechnicalAnalysis.ResistanceLevel))
 	sb.WriteString(fmt.Sprintf("Technical Score: %d/100\n\n", position.Recommendation.TechnicalAnalysis.TechnicalScore))
+
+	// News Summary
+	sb.WriteString("📰 <b>News Summary:</b>\n")
+	sb.WriteString(fmt.Sprintf("Confidence Score: %.2f\n", position.NewsSummary.ConfidenceScore))
+	sb.WriteString(fmt.Sprintf("Sentiment: %s\n", position.NewsSummary.Sentiment))
+	sb.WriteString(fmt.Sprintf("Impact: %s\n\n", position.NewsSummary.Impact))
 
 	// Risk Analysis
 	sb.WriteString("⚠️ <b>Risk Analysis:</b>\n")
@@ -612,15 +675,88 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 		sb.WriteString(fmt.Sprintf("Signal: %s | Confidence: %d%%\n", position.TechnicalSummary.OverallSignal, position.TechnicalSummary.ConfidenceLevel))
 		if len(position.TechnicalSummary.KeyInsights) > 0 {
 			sb.WriteString("Key Insights:\n")
-			for i, insight := range position.TechnicalSummary.KeyInsights {
-				if i < 2 { // Limit to 2 most important insights
-					sb.WriteString(fmt.Sprintf("• %s\n", insight))
-				}
+			for _, insight := range position.TechnicalSummary.KeyInsights {
+				sb.WriteString(fmt.Sprintf("• %s\n", insight))
+
+			}
+		}
+
+		if len(position.NewsSummary.KeyIssues) > 0 {
+			for _, issue := range position.NewsSummary.KeyIssues {
+				sb.WriteString(fmt.Sprintf("• %s\n", issue))
+
 			}
 		}
 	}
 
 	return sb.String()
+}
+
+func (t *TelegramBotService) FormatBulkPositionMonitoringMessage(positions []models.PositionMonitoringResponse) []string {
+	const maxLen = 4090
+	var messages []string
+	var currentMessage strings.Builder
+	part := 1
+
+	now := utils.TimeNowWIB()
+	// Helper function to start a new message part with the correct header
+	startNewPart := func() {
+		currentMessage.Reset()
+		var header string
+		if part == 1 {
+			header = "📊 <b>Position Update Harian </b>\n"
+		} else {
+			header = fmt.Sprintf("---*Lanjutan Position Update Harian Part %d*---\n\n", part)
+		}
+		currentMessage.WriteString(header)
+		currentMessage.WriteString(utils.PrettyDate(now) + "\n\n")
+	}
+
+	// Start the first part
+	startNewPart()
+
+	for _, position := range positions {
+
+		var entryBuilder strings.Builder
+		entryBuilder.WriteString(fmt.Sprintf("💼 <b>$%s</b>\n", position.Symbol))
+		entryBuilder.WriteString(fmt.Sprintf("💰 Buy: $%.2f | Current: $%.2f | P&L: %.2f%%\n", position.BuyPrice, position.CurrentPrice, position.PositionMetrics.UnrealizedPnLPercentage))
+		entryBuilder.WriteString(fmt.Sprintf("📈 Age: %d days | Remaining: %d days\n", position.PositionAgeDays, position.PositionMetrics.DaysRemaining))
+		entryBuilder.WriteString(fmt.Sprintf("🎯 TP: $%.2f | SL: $%.2f\n",
+			position.Recommendation.RiskRewardAnalysis.ExitRecommendation.TargetExitPrice,
+			position.Recommendation.RiskRewardAnalysis.ExitRecommendation.StopLossPrice))
+		// Suggested Action with icon
+		var actionIcon string
+		switch strings.ToLower(position.Recommendation.Action) {
+		case "buy":
+			actionIcon = "🟢"
+		case "sell":
+			actionIcon = "🔴"
+		default: // Hold, Neutral
+			actionIcon = "🟡"
+		}
+
+		entryBuilder.WriteString(fmt.Sprintf("📌 Action: %s %s\n", actionIcon, position.Recommendation.Action))
+		entryBuilder.WriteString(fmt.Sprintf("🧠 Success Probability: %d%%\n", position.Recommendation.RiskRewardAnalysis.SuccessProbability))
+		entryBuilder.WriteString(fmt.Sprintf("🔍 Reasoning: %s\n\n\n", position.Recommendation.Reasoning))
+
+		// Check if adding the new entry exceeds the max length. We assume a single entry doesn't exceed the limit.
+		if currentMessage.Len()+len(entryBuilder.String()) > maxLen {
+			// Finalize the current message and add it to the slice
+			messages = append(messages, currentMessage.String())
+
+			// Start a new part
+			part++
+			startNewPart()
+		}
+
+		// Add the entry to the current message
+		currentMessage.WriteString(entryBuilder.String())
+	}
+
+	// Add the final message part to the slice
+	messages = append(messages, currentMessage.String())
+
+	return messages
 }
 
 func (t *TelegramBotService) Start() {
@@ -714,7 +850,7 @@ func (t *TelegramBotService) handleBuyList(c telebot.Context) error {
 		}
 
 		// Perform analysis on all stocks
-		summary, err := t.analyzer.AnalyzeAllStocks(t.tradingConfig.StockList)
+		summary, err := t.analyzer.AnalyzeAllStocks(t.ctx, t.tradingConfig.StockList)
 		if err != nil {
 			t.logger.WithError(err).Error("Failed to analyze all stocks")
 
@@ -856,19 +992,6 @@ func (t *TelegramBotService) FormatBuyListMessage(summary *models.SummaryAnalysi
 	sb.WriteString("📋 <b>MARKET OVERVIEW:</b>\n")
 	sb.WriteString(fmt.Sprintf("Best Opportunity: %s\n", summary.Summary.BestOpportunity))
 	sb.WriteString(fmt.Sprintf("Worst Opportunity: %s\n\n", summary.Summary.WorstOpportunity))
-
-	// Buy List
-	if len(summary.BuyList) > 0 {
-		sb.WriteString("🟢 <b>RECOMMENDED BUY LIST:</b>\n")
-		for _, stock := range summary.BuyList {
-			sb.WriteString(fmt.Sprintf("• <b>%s</b> - $%.2f\n", stock.Symbol, stock.CurrentPrice))
-			sb.WriteString(fmt.Sprintf("  Buy: $%.2f | Target: $%.2f | Cut Loss: $%.2f\n", stock.BuyPrice, stock.TargetPrice, stock.StopLoss))
-			sb.WriteString(fmt.Sprintf("  Profit: %.2f%% | Risk Ratio: %.2f | Max Days: %d\n", stock.ProfitPercentage, stock.RiskRatio, stock.MaxHoldingDays))
-			sb.WriteString(fmt.Sprintf("  Confidence: %d%% | Risk: %s\n\n", stock.Confidence, stock.RiskLevel))
-		}
-	} else {
-		sb.WriteString("🟢 <b>RECOMMENDED BUY LIST:</b> No stocks recommended for buying at this time\n\n")
-	}
 
 	return sb.String()
 }

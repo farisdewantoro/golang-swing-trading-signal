@@ -32,7 +32,7 @@ type OHLCDataWithInfo struct {
 	DataInfo models.DataInfo
 }
 
-func (c *Client) GetOHLCData(symbol string, period1, period2 int64) (*OHLCDataWithInfo, error) {
+func (c *Client) GetOHLCData(symbol string, period1, period2 int64, interval string) (*OHLCDataWithInfo, error) {
 	// Add .JK suffix for Indonesian stocks
 	indonesianSymbol := symbol + ".JK"
 
@@ -41,7 +41,8 @@ func (c *Client) GetOHLCData(symbol string, period1, period2 int64) (*OHLCDataWi
 	params := url.Values{}
 	params.Add("period1", fmt.Sprintf("%d", period1))
 	params.Add("period2", fmt.Sprintf("%d", period2))
-	params.Add("interval", "1d")
+
+	params.Add("interval", interval)
 	params.Add("includePrePost", "false")
 	params.Add("events", "div,split")
 
@@ -148,13 +149,20 @@ func (c *Client) GetOHLCData(symbol string, period1, period2 int64) (*OHLCDataWi
 	startDate := time.Unix(period1, 0)
 	endDate := time.Unix(period2, 0)
 
+	marketPrice := 0.0
+
+	if len(yahooResp.Chart.Result) > 0 && yahooResp.Chart.Result[0].Meta.RegularMarketPrice > 0 {
+		marketPrice = yahooResp.Chart.Result[0].Meta.RegularMarketPrice
+	}
+
 	dataInfo := models.DataInfo{
-		Interval:   "1d",
-		Range:      fmt.Sprintf("%d days", int(endDate.Sub(startDate).Hours()/24)),
-		StartDate:  startDate,
-		EndDate:    endDate,
-		DataPoints: len(ohlcvData),
-		Source:     "Yahoo Finance API",
+		Interval:    "1d",
+		Range:       fmt.Sprintf("%d days", int(endDate.Sub(startDate).Hours()/24)),
+		StartDate:   startDate,
+		EndDate:     endDate,
+		DataPoints:  len(ohlcvData),
+		Source:      "Yahoo Finance API",
+		MarketPrice: marketPrice,
 	}
 
 	return &OHLCDataWithInfo{
@@ -164,22 +172,49 @@ func (c *Client) GetOHLCData(symbol string, period1, period2 int64) (*OHLCDataWi
 }
 
 // GetRecentOHLCData gets the last 60 days of OHLC data
-func (c *Client) GetRecentOHLCData(symbol string) (*OHLCDataWithInfo, error) {
-	wib, err := time.LoadLocation("Asia/Jakarta")
-	if err != nil {
-		return nil, fmt.Errorf("failed to load WIB timezone, using UTC: %v", err)
+func (c *Client) GetRecentOHLCData(symbol string, interval string, period string) (*OHLCDataWithInfo, error) {
+	period1, period2 := c.MapPeriodeStringToUnix("2m")
 
+	if period != "" {
+		period1, period2 = c.MapPeriodeStringToUnix(period)
 	}
-	now := time.Now().In(wib)
-	period2 := now.Unix()
-	period1 := now.AddDate(0, 0, -60).Unix() // 60 days ago
 
-	return c.GetOHLCData(symbol, period1, period2)
+	if interval == "" {
+		interval = "1d"
+	}
+	return c.GetOHLCData(symbol, period1, period2, interval)
+}
+
+// MapPeriodeStringToUnix convert days to unix timestamp
+func (c *Client) MapPeriodeStringToUnix(periode string) (int64, int64) {
+	wib, err := time.LoadLocation("Asia/Jakarta")
+	now := time.Now().In(wib)
+	if err != nil {
+		return 0, 0
+	}
+	switch periode {
+	case "1d":
+		return now.AddDate(0, 0, -1).Unix(), now.Unix()
+	case "1w":
+		return now.AddDate(0, 0, -7).Unix(), now.Unix()
+	case "1m":
+		return now.AddDate(0, 0, -30).Unix(), now.Unix()
+	case "2m":
+		return now.AddDate(0, 0, -60).Unix(), now.Unix()
+	case "3m":
+		return now.AddDate(0, 0, -90).Unix(), now.Unix()
+	case "6m":
+		return now.AddDate(0, 0, -180).Unix(), now.Unix()
+	case "1y":
+		return now.AddDate(0, 0, -365).Unix(), now.Unix()
+	default:
+		return 0, 0
+	}
 }
 
 // GetLatestOHLCData gets the most recent OHLC data
 func (c *Client) GetLatestOHLCData(symbol string) (*models.OHLCVData, error) {
-	ohlcvDataWithInfo, err := c.GetRecentOHLCData(symbol)
+	ohlcvDataWithInfo, err := c.GetRecentOHLCData(symbol, "", "")
 	if err != nil {
 		return nil, err
 	}

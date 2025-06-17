@@ -1,17 +1,20 @@
 package config
 
 import (
+	"golang-swing-trading-signal/pkg/postgres"
+	"log"
 	"strings"
 
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Server   ServerConfig
-	Yahoo    YahooFinanceConfig
-	Gemini   GeminiConfig
-	Trading  TradingConfig
-	Telegram TelegramConfig
+	Server   ServerConfig       `mapstructure:"server"`
+	Yahoo    YahooFinanceConfig `mapstructure:"yahoo"`
+	Gemini   GeminiConfig       `mapstructure:"gemini"`
+	Trading  TradingConfig      `mapstructure:"trading"`
+	Telegram TelegramConfig     `mapstructure:"telegram"`
+	Database postgres.Config    `mapstructure:"database"`
 }
 
 type ServerConfig struct {
@@ -24,9 +27,11 @@ type YahooFinanceConfig struct {
 }
 
 type GeminiConfig struct {
-	APIKey  string
-	BaseURL string
-	Model   string
+	APIKey              string
+	BaseURL             string
+	Model               string
+	MaxRequestPerMinute int
+	MaxTokenPerMinute   int
 }
 
 type TradingConfig struct {
@@ -48,16 +53,7 @@ func LoadConfig() (*Config, error) {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
-		// If .env file doesn't exist, use environment variables
-		viper.SetDefault("PORT", "8080")
-		viper.SetDefault("ENV", "development")
-		viper.SetDefault("YAHOO_FINANCE_BASE_URL", "https://query1.finance.yahoo.com/v8/finance/chart")
-		viper.SetDefault("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/models")
-		viper.SetDefault("GEMINI_MODEL", "gemini-pro")
-		viper.SetDefault("DEFAULT_MAX_HOLDING_PERIOD_DAYS", 5)
-		viper.SetDefault("CONFIDENCE_THRESHOLD", 70)
-		viper.SetDefault("STOCK_LIST", "BBCA,BBRI,ANTM,ASII,ICBP,INDF,KLBF,PGAS,PTBA,SMGR,TLKM,UNTR,UNVR,WSKT")
-		viper.SetDefault("TELEGRAM_WEBHOOK_URL", "")
+		log.Fatalf("Failed to read config file: %v", err)
 	}
 
 	// Parse stock list from comma-separated string
@@ -80,9 +76,11 @@ func LoadConfig() (*Config, error) {
 			BaseURL: viper.GetString("YAHOO_FINANCE_BASE_URL"),
 		},
 		Gemini: GeminiConfig{
-			APIKey:  viper.GetString("GEMINI_API_KEY"),
-			BaseURL: viper.GetString("GEMINI_BASE_URL"),
-			Model:   viper.GetString("GEMINI_MODEL"),
+			APIKey:              viper.GetString("GEMINI_API_KEY"),
+			BaseURL:             viper.GetString("GEMINI_BASE_URL"),
+			Model:               viper.GetString("GEMINI_MODEL"),
+			MaxRequestPerMinute: viper.GetInt("GEMINI_MAX_REQUEST_PER_MINUTE"),
+			MaxTokenPerMinute:   viper.GetInt("GEMINI_MAX_TOKEN_PER_MINUTE"),
 		},
 		Trading: TradingConfig{
 			DefaultMaxHoldingPeriodDays: viper.GetInt("DEFAULT_MAX_HOLDING_PERIOD_DAYS"),
@@ -93,6 +91,19 @@ func LoadConfig() (*Config, error) {
 			BotToken:   viper.GetString("TELEGRAM_BOT_TOKEN"),
 			ChatID:     viper.GetString("TELEGRAM_CHAT_ID"),
 			WebhookURL: viper.GetString("TELEGRAM_WEBHOOK_URL"),
+		},
+		Database: postgres.Config{
+			Host:            viper.GetString("DATABASE_HOST"),
+			Port:            viper.GetInt("DATABASE_PORT"),
+			User:            viper.GetString("DATABASE_USER"),
+			Password:        viper.GetString("DATABASE_PASSWORD"),
+			DBName:          viper.GetString("DATABASE_NAME"),
+			SSLMode:         viper.GetString("DATABASE_SSL_MODE"),
+			TimeZone:        viper.GetString("DATABASE_TIME_ZONE"),
+			MaxIdleConns:    viper.GetInt("DATABASE_MAX_IDLE_CONNS"),
+			MaxOpenConns:    viper.GetInt("DATABASE_MAX_OPEN_CONNS"),
+			ConnMaxLifetime: viper.GetString("DATABASE_CONN_MAX_LIFETIME"),
+			LogLevel:        viper.GetString("DATABASE_LOG_LEVEL"),
 		},
 	}
 

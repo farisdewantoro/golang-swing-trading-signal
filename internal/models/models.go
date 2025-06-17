@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/lib/pq"
+)
 
 // OHLCV Data Structure
 type OHLCVData struct {
@@ -17,7 +21,8 @@ type YahooFinanceResponse struct {
 	Chart struct {
 		Result []struct {
 			Meta struct {
-				Symbol string `json:"symbol"`
+				Symbol             string  `json:"symbol"`
+				RegularMarketPrice float64 `json:"regularMarketPrice"`
 			} `json:"meta"`
 			Timestamp  []int64 `json:"timestamp"`
 			Indicators struct {
@@ -156,16 +161,18 @@ type IndividualAnalysisResponse struct {
 	RiskLevel            string            `json:"risk_level"`
 	TechnicalSummary     TechnicalSummary  `json:"technical_summary"`
 	MaxHoldingPeriodDays int               `json:"max_holding_period_days,omitempty"`
+	NewsSummary          NewsSummary       `json:"news_summary,omitempty"`
 }
 
 // Data Information
 type DataInfo struct {
-	Interval   string    `json:"interval"`
-	Range      string    `json:"range"`
-	StartDate  time.Time `json:"start_date"`
-	EndDate    time.Time `json:"end_date"`
-	DataPoints int       `json:"data_points"`
-	Source     string    `json:"source"`
+	Interval    string    `json:"interval"`
+	Range       string    `json:"range"`
+	StartDate   time.Time `json:"start_date"`
+	EndDate     time.Time `json:"end_date"`
+	DataPoints  int       `json:"data_points"`
+	Source      string    `json:"source"`
+	MarketPrice float64   `json:"market_price"`
 }
 
 // Position Monitoring Request
@@ -174,6 +181,8 @@ type PositionMonitoringRequest struct {
 	BuyPrice             float64   `json:"buy_price" binding:"required"`
 	BuyTime              time.Time `json:"buy_time" binding:"required"`
 	MaxHoldingPeriodDays int       `json:"max_holding_period_days" binding:"required"`
+	Interval             string    `json:"interval"`
+	Period               string    `json:"period"`
 }
 
 // Technical Summary
@@ -185,6 +194,14 @@ type TechnicalSummary struct {
 	RiskLevel       string   `json:"risk_level"`
 	ConfidenceLevel int      `json:"confidence_level"`
 	KeyInsights     []string `json:"key_insights"`
+}
+
+// News Summary
+type NewsSummary struct {
+	ConfidenceScore float64  `json:"confidence_score"`
+	Sentiment       string   `json:"sentiment"`
+	Impact          string   `json:"impact"`
+	KeyIssues       []string `json:"key_issues"`
 }
 
 // Position Monitoring Response
@@ -199,6 +216,7 @@ type PositionMonitoringResponse struct {
 	Recommendation       PositionRecommendation `json:"recommendation"`
 	PositionMetrics      PositionMetrics        `json:"position_metrics"`
 	TechnicalSummary     TechnicalSummary       `json:"technical_summary"`
+	NewsSummary          NewsSummary            `json:"news_summary,omitempty"`
 }
 
 // Gemini AI Request
@@ -260,4 +278,25 @@ type StockSummary struct {
 type SummaryStatistics struct {
 	BestOpportunity  string `json:"best_opportunity"`
 	WorstOpportunity string `json:"worst_opportunity"`
+}
+
+// StockNewsSummary represents a summary of news articles for a specific stock.
+type StockNewsSummaryEntity struct {
+	ID                     uint           `gorm:"primaryKey" json:"id"`
+	StockCode              string         `gorm:"type:varchar(50);not null" json:"stock_code"`
+	SummarySentiment       string         `gorm:"type:varchar(50)" json:"summary_sentiment"`
+	SummaryImpact          string         `gorm:"type:varchar(50)" json:"summary_impact"`
+	SummaryConfidenceScore float64        `json:"summary_confidence_score"`
+	KeyIssues              pq.StringArray `gorm:"type:text[]" json:"key_issues"`
+	SuggestedAction        string         `gorm:"type:varchar(10)" json:"suggested_action"`
+	Reasoning              string         `gorm:"type:text" json:"reasoning"`
+	ShortSummary           string         `gorm:"type:text" json:"short_summary"`
+	SummaryStart           time.Time      `json:"summary_start"`
+	SummaryEnd             time.Time      `json:"summary_end"`
+	CreatedAt              time.Time      `gorm:"autoCreateTime" json:"created_at"`
+}
+
+// TableName specifies the table name for the StockNewsSummary model.
+func (StockNewsSummaryEntity) TableName() string {
+	return "stock_news_summary"
 }

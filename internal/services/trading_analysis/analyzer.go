@@ -1,38 +1,54 @@
 package trading_analysis
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math"
 	"time"
 
 	"golang-swing-trading-signal/internal/models"
+	"golang-swing-trading-signal/internal/repository"
 	"golang-swing-trading-signal/internal/services/gemini_ai"
 	"golang-swing-trading-signal/internal/services/yahoo_finance"
+	"golang-swing-trading-signal/internal/utils"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Analyzer struct {
-	yahooClient  *yahoo_finance.Client
-	geminiClient *gemini_ai.Client
+	yahooClient                *yahoo_finance.Client
+	geminiClient               *gemini_ai.Client
+	logger                     *logrus.Logger
+	stockNewsSummaryRepository repository.StockNewsSummaryRepository
 }
 
-func NewAnalyzer(yahooClient *yahoo_finance.Client, geminiClient *gemini_ai.Client) *Analyzer {
+func NewAnalyzer(yahooClient *yahoo_finance.Client, geminiClient *gemini_ai.Client, logger *logrus.Logger, stockNewsSummaryRepository repository.StockNewsSummaryRepository) *Analyzer {
 	return &Analyzer{
-		yahooClient:  yahooClient,
-		geminiClient: geminiClient,
+		yahooClient:                yahooClient,
+		geminiClient:               geminiClient,
+		logger:                     logger,
+		stockNewsSummaryRepository: stockNewsSummaryRepository,
 	}
 }
 
 // AnalyzeStock performs complete analysis of a stock
-func (a *Analyzer) AnalyzeStock(symbol string) (*models.IndividualAnalysisResponse, error) {
+func (a *Analyzer) AnalyzeStock(ctx context.Context, symbol string, interval, period string) (*models.IndividualAnalysisResponse, error) {
 	// Get OHLC data from Yahoo Finance
-	ohlcvDataWithInfo, err := a.yahooClient.GetRecentOHLCData(symbol)
+	ohlcvDataWithInfo, err := a.yahooClient.GetRecentOHLCData(symbol, interval, period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OHLC data: %w", err)
 	}
 
+	// Get last stock news summary
+	beforeTime := utils.GetNowWithOnlyHour().Add(-time.Hour * 24 * 3)
+	lastStockNewsSummary, err := a.stockNewsSummaryRepository.GetLast(beforeTime, symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last stock news summary: %w", err)
+	}
+
 	// Send to Gemini AI for analysis
-	analysis, err := a.geminiClient.AnalyzeStock(symbol, ohlcvDataWithInfo.Data, ohlcvDataWithInfo.DataInfo)
+	analysis, err := a.geminiClient.AnalyzeStock(ctx, symbol, ohlcvDataWithInfo.Data, ohlcvDataWithInfo.DataInfo, lastStockNewsSummary)
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze stock: %w", err)
 	}
@@ -44,15 +60,22 @@ func (a *Analyzer) AnalyzeStock(symbol string) (*models.IndividualAnalysisRespon
 }
 
 // MonitorPosition monitors an existing trading position
-func (a *Analyzer) MonitorPosition(request models.PositionMonitoringRequest) (*models.PositionMonitoringResponse, error) {
+func (a *Analyzer) MonitorPosition(ctx context.Context, request models.PositionMonitoringRequest) (*models.PositionMonitoringResponse, error) {
 	// Get latest OHLC data from Yahoo Finance
-	ohlcvDataWithInfo, err := a.yahooClient.GetRecentOHLCData(request.Symbol)
+	ohlcvDataWithInfo, err := a.yahooClient.GetRecentOHLCData(request.Symbol, request.Interval, request.Period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OHLC data: %w", err)
 	}
 
+	// Get last stock news summary
+	beforeTime := utils.GetNowWithOnlyHour().Add(-time.Hour * 24 * 3)
+	lastStockNewsSummary, err := a.stockNewsSummaryRepository.GetLast(beforeTime, request.Symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last stock news summary: %w", err)
+	}
+
 	// Send to Gemini AI for position analysis
-	analysis, err := a.geminiClient.MonitorPosition(request, ohlcvDataWithInfo.Data, ohlcvDataWithInfo.DataInfo)
+	analysis, err := a.geminiClient.MonitorPosition(ctx, request, ohlcvDataWithInfo.Data, ohlcvDataWithInfo.DataInfo, lastStockNewsSummary)
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze position: %w", err)
 	}
@@ -62,6 +85,7 @@ func (a *Analyzer) MonitorPosition(request models.PositionMonitoringRequest) (*m
 
 	// Set buying price from request
 	analysis.BuyPrice = request.BuyPrice
+	analysis.CurrentPrice = ohlcvDataWithInfo.DataInfo.MarketPrice
 
 	// Calculate position age
 	positionAge := int(time.Since(request.BuyTime).Hours() / 24)
@@ -81,8 +105,25 @@ func (a *Analyzer) MonitorPosition(request models.PositionMonitoringRequest) (*m
 	return analysis, nil
 }
 
+// BulkMonitorPosition monitors multiple positions at once
+func (a *Analyzer) BulkMonitorPosition(ctx context.Context, requests []models.PositionMonitoringRequest) ([]models.PositionMonitoringResponse, []error) {
+	var analyses []models.PositionMonitoringResponse
+	var errors []error
+
+	for _, request := range requests {
+		analysis, err := a.MonitorPosition(ctx, request)
+		if err != nil {
+			errors = append(errors, err)
+			continue
+		}
+		analyses = append(analyses, *analysis)
+	}
+
+	return analyses, errors
+}
+
 // ValidateSymbol validates if the symbol is valid for Indonesian stocks
-func (a *Analyzer) ValidateSymbol(symbol string) error {
+func (a *Analyzer) ValidateSymbol(ctx context.Context, symbol string) error {
 	if symbol == "" {
 		return fmt.Errorf("symbol cannot be empty")
 	}
@@ -97,7 +138,7 @@ func (a *Analyzer) ValidateSymbol(symbol string) error {
 }
 
 // AnalyzeAllStocks analyzes all stocks from configuration and returns summary
-func (a *Analyzer) AnalyzeAllStocks(stockList []string) (*models.SummaryAnalysisResponse, error) {
+func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string) (*models.SummaryAnalysisResponse, error) {
 	var buyList []models.StockSummary
 	var holdList []models.StockSummary
 	var totalConfidence int
@@ -115,7 +156,7 @@ func (a *Analyzer) AnalyzeAllStocks(stockList []string) (*models.SummaryAnalysis
 	for i, symbol := range stockList {
 		log.Printf("[%d/%d] Analyzing stock: %s", i+1, len(stockList), symbol)
 
-		analysis, err := a.AnalyzeStock(symbol)
+		analysis, err := a.AnalyzeStock(ctx, symbol, "", "")
 		if err != nil {
 			// Log error but continue with other stocks
 			log.Printf("Error analyzing %s: %v", symbol, err)
@@ -127,7 +168,7 @@ func (a *Analyzer) AnalyzeAllStocks(stockList []string) (*models.SummaryAnalysis
 		// Get current price from Yahoo Finance data directly
 		var currentPrice float64
 		// Get the latest OHLC data to extract current price
-		ohlcvDataWithInfo, err := a.yahooClient.GetRecentOHLCData(symbol)
+		ohlcvDataWithInfo, err := a.yahooClient.GetRecentOHLCData(symbol, "", "")
 		if err == nil && len(ohlcvDataWithInfo.Data) > 0 {
 			// Use the most recent close price as current price
 			currentPrice = ohlcvDataWithInfo.Data[len(ohlcvDataWithInfo.Data)-1].Close

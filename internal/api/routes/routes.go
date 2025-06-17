@@ -17,6 +17,7 @@ func SetupRoutes(router *gin.Engine, tradingHandler *handlers.TradingHandler, te
 		v1.GET("/analyze", tradingHandler.AnalyzeStock)
 		v1.GET("/analyze-all", tradingHandler.AnalyzeAllStocks)
 		v1.POST("/monitor-position", tradingHandler.MonitorPosition)
+		v1.POST("/bulk-monitor-position", tradingHandler.BulkMonitorPosition)
 
 		// Telegram bot endpoints (basic info only, webhook handled by Telegram service)
 		telegram := v1.Group("/telegram")
