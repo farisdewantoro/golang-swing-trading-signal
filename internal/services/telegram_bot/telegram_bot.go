@@ -360,7 +360,7 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 	sb.WriteString("📰 <b>News Summary Analysis:</b>\n")
 	sb.WriteString(fmt.Sprintf("Confidence Score: %.2f\n", analysis.NewsSummary.ConfidenceScore))
 	sb.WriteString(fmt.Sprintf("Sentiment: %s\n", analysis.NewsSummary.Sentiment))
-	sb.WriteString(fmt.Sprintf("Impact: %s\n", analysis.NewsSummary.Impact))
+	sb.WriteString(fmt.Sprintf("Impact: %s\n\n", analysis.NewsSummary.Impact))
 
 	// Key Levels
 	sb.WriteString("🎯 <b>Key Levels:</b>\n")
@@ -940,9 +940,6 @@ func (t *TelegramBotService) FormatBuyListSummaryMessage(summary *models.Summary
 
 	// Buy List Summary
 	if len(summary.BuyList) > 0 {
-		sb.WriteString("🟢 <b>RECOMMENDED BUY LIST SUMMARY:</b>\n")
-		sb.WriteString(fmt.Sprintf("Found %d stocks recommended for buying\n\n", len(summary.BuyList)))
-
 		// Show top 3 stocks with highest confidence
 		sb.WriteString("🏆 <b>TOP RECOMMENDATIONS:</b>\n")
 		for i, stock := range summary.BuyList {
