@@ -251,9 +251,9 @@ Data OHLC %s:
 Analisis teknikal yang diperlukan:
 1. Trend: BULLISH/BEARISH/SIDEWAYS (short-term 1-3 hari, medium-term 1-2 minggu)
 2. Technical indicators:
-   - EMA 9/21 signal (BULLISH jika EMA9 > EMA21, BEARISH jika EMA9 < EMA21, NEUTRAL)
-   - RSI 14 signal (OVERBOUGHT >70, OVERSOLD <30, NEUTRAL 30-70)
-   - MACD signal (BULLISH jika MACD > Signal, BEARISH jika MACD < Signal, NEUTRAL)
+   - EMA signal (BULLISH, BEARISH, NEUTRAL)
+   - RSI signal (OVERBOUGHT, OVERSOLD, NEUTRAL)
+   - MACD signal (BULLISH, BEARISH, NEUTRAL)
    - Bollinger Bands position (UPPER/MIDDLE/LOWER)
 3. Support dan resistance levels
 4. Volume trend (HIGH/NORMAL/LOW) dan momentum
@@ -279,10 +279,7 @@ Return response dalam format JSON:
     "trend": "BULLISH|BEARISH|SIDEWAYS",
     "short_term_trend": "BULLISH|BEARISH|SIDEWAYS",
     "medium_term_trend": "BULLISH|BEARISH|SIDEWAYS",
-    "ema_9": 8750,
-    "ema_21": 8700,
     "ema_signal": "BULLISH|BEARISH|NEUTRAL",
-    "rsi": 65.5,
     "rsi_signal": "OVERBOUGHT|OVERSOLD|NEUTRAL",
     "macd_signal": "BULLISH|BEARISH|NEUTRAL",
     "bollinger_bands_position": "UPPER|MIDDLE|LOWER",
@@ -301,17 +298,17 @@ Return response dalam format JSON:
   },
   "recommendation": {
     "action": "BUY|HOLD|SELL",
-    "buy_price": 8750,
-    "target_price": 9200,
-    "cut_loss": 8400,
-    "confidence_level": 85,
+    "buy_price": (Harga pembelian),
+    "target_price": (Harga target - risk_reward_ratio ≥ 1:3),
+    "cut_loss": (Harga cut loss),
+    "confidence_level": (Confidence level 0-100),
     "reasoning": "Analisis teknikal menunjukkan momentum bullish dengan volume mendukung. EMA 9 di atas EMA 21, RSI 65.5 netral-positif, MACD bullish. Support 8500, resistance 9200. Risk/reward ratio menguntungkan.",
     "risk_reward_analysis": {
       "potential_profit": 450,
       "potential_profit_percentage": 5.14,
       "potential_loss": 350,
       "potential_loss_percentage": 4.0,
-      "risk_reward_ratio": 1.29,
+      "risk_reward_ratio": 1.29 (PENTING UNTUK BUY ≥ 1:3),
       "risk_level": "LOW|MEDIUM|HIGH",
       "expected_holding_period": "3-5 days",
       "success_probability": 75
@@ -324,7 +321,7 @@ Return response dalam format JSON:
     "volume_support": "HIGH",
     "momentum": "POSITIVE",
     "risk_level": "LOW",
-    "confidence_level": 85,
+    "confidence_level": (Confidence level 0-100),
     "key_insights": [
       "Trend bullish dengan volume mendukung",
       "Technical indicators positif",
@@ -333,7 +330,7 @@ Return response dalam format JSON:
     ]
   },
   "news_summary":{ (JIKA ADA NEWS SUMMARY)
-    "confidence_score": 0.0 - 1.0,
+    "confidence_score": (Confidence score 0.0 - 1.0),
     "sentiment": "positive, negative, neutral, mixed",
     "impact": "bullish, bearish, sideways"
     "key_issues": ["issue1", "issue2", "issue3"]
@@ -404,7 +401,7 @@ Data OHLC %s:
 Analisis yang diperlukan:
 1. Hitung current profit/loss dan percentage
 2. Analisis trend (short-term dan medium-term)
-3. Technical indicators: EMA 9/21, RSI 14, MACD, Bollinger Bands
+3. Technical indicators: EMA, RSI, MACD, Bollinger Bands
 4. Support dan resistance levels
 5. Volume trend dan momentum
 6. Candlestick patterns
@@ -431,10 +428,7 @@ Return response dalam format JSON:
       "trend": "BULLISH",
       "short_term_trend": "BULLISH",
       "medium_term_trend": "BULLISH",
-      "ema_9": 9080,
-      "ema_21": 9020,
       "ema_signal": "BULLISH",
-      "rsi": 68.5,
       "rsi_signal": "NEUTRAL",
       "macd_signal": "BULLISH",
       "bollinger_bands_position": "MIDDLE",
@@ -458,7 +452,7 @@ Return response dalam format JSON:
       "remaining_potential_profit_percentage": 4.44,
       "current_risk": 150,
       "current_risk_percentage": 1.67,
-      "risk_reward_ratio": 2.67,
+      "risk_reward_ratio": 2.67 (PENTING UNTUK MENGGUNAKAN risk-reward ratio ≥ 1:3),
       "risk_level": "LOW",
       "days_remaining": %d,
       "success_probability": 85,

@@ -54,10 +54,7 @@ type TechnicalAnalysis struct {
 	Trend                  string    `json:"trend"`
 	ShortTermTrend         string    `json:"short_term_trend"`
 	MediumTermTrend        string    `json:"medium_term_trend"`
-	EMA9                   float64   `json:"ema_9"`
-	EMA21                  float64   `json:"ema_21"`
 	EMASignal              string    `json:"ema_signal"`
-	RSI                    float64   `json:"rsi"`
 	RSISignal              string    `json:"rsi_signal"`
 	MACDSignal             string    `json:"macd_signal"`
 	StochasticSignal       string    `json:"stochastic_signal"`
@@ -269,7 +266,7 @@ type StockSummary struct {
 	StopLoss         float64 `json:"stop_loss"`
 	MaxHoldingDays   int     `json:"max_holding_days"`
 	ProfitPercentage float64 `json:"profit_percentage"`
-	RiskRatio        float64 `json:"risk_ratio"`
+	RiskRewardRatio  float64 `json:"risk_reward_ratio"`
 	Confidence       int     `json:"confidence"`
 	RiskLevel        string  `json:"risk_level"`
 }

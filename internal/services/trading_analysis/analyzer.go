@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
 	"time"
 
 	"golang-swing-trading-signal/internal/models"
@@ -141,9 +140,6 @@ func (a *Analyzer) ValidateSymbol(ctx context.Context, symbol string) error {
 func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string) (*models.SummaryAnalysisResponse, error) {
 	var buyList []models.StockSummary
 	var holdList []models.StockSummary
-	var totalConfidence int
-	var totalProfitPercent float64
-	var totalRiskRatio float64
 
 	bestOpportunity := ""
 	worstOpportunity := ""
@@ -165,29 +161,16 @@ func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string) (*m
 
 		log.Printf("Successfully analyzed %s - Signal: %s, Confidence: %d", symbol, analysis.Signal, analysis.TechnicalSummary.ConfidenceLevel)
 
-		// Get current price from Yahoo Finance data directly
-		var currentPrice float64
-		// Get the latest OHLC data to extract current price
-		ohlcvDataWithInfo, err := a.yahooClient.GetRecentOHLCData(symbol, "", "")
-		if err == nil && len(ohlcvDataWithInfo.Data) > 0 {
-			// Use the most recent close price as current price
-			currentPrice = ohlcvDataWithInfo.Data[len(ohlcvDataWithInfo.Data)-1].Close
-		}
-
-		// Calculate profit percentage and risk ratio
-		profitPercentage := ((analysis.Recommendation.TargetPrice - analysis.Recommendation.BuyPrice) / analysis.Recommendation.BuyPrice) * 100
-		riskRatio := profitPercentage / math.Abs(((analysis.Recommendation.CutLoss-analysis.Recommendation.BuyPrice)/analysis.Recommendation.BuyPrice)*100)
-
 		stockSummary := models.StockSummary{
 			Symbol:           symbol,
 			Signal:           analysis.Signal,
-			CurrentPrice:     currentPrice,
+			CurrentPrice:     analysis.DataInfo.MarketPrice,
 			BuyPrice:         analysis.Recommendation.BuyPrice,
 			TargetPrice:      analysis.Recommendation.TargetPrice,
 			StopLoss:         analysis.Recommendation.CutLoss,
 			MaxHoldingDays:   analysis.MaxHoldingPeriodDays,
-			ProfitPercentage: profitPercentage,
-			RiskRatio:        riskRatio,
+			ProfitPercentage: analysis.Recommendation.RiskRewardAnalysis.PotentialProfit,
+			RiskRewardRatio:  analysis.Recommendation.RiskRewardAnalysis.RiskRewardRatio,
 			Confidence:       analysis.TechnicalSummary.ConfidenceLevel,
 			RiskLevel:        analysis.RiskLevel,
 		}
@@ -199,26 +182,16 @@ func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string) (*m
 			holdList = append(holdList, stockSummary)
 		}
 
-		// Update statistics
-		totalConfidence += analysis.TechnicalSummary.ConfidenceLevel
-		totalProfitPercent += profitPercentage
-		totalRiskRatio += riskRatio
-
 		// Track best and worst opportunities
-		if profitPercentage > bestProfit {
-			bestProfit = profitPercentage
+		if analysis.Recommendation.RiskRewardAnalysis.PotentialProfit > bestProfit {
+			bestProfit = analysis.Recommendation.RiskRewardAnalysis.PotentialProfit
 			bestOpportunity = symbol
 		}
-		if profitPercentage < worstProfit {
-			worstProfit = profitPercentage
+		if analysis.Recommendation.RiskRewardAnalysis.PotentialLoss > worstProfit {
+			worstProfit = analysis.Recommendation.RiskRewardAnalysis.PotentialLoss
 			worstOpportunity = symbol
 		}
 
-		// Sleep for 2 seconds before processing next stock (except for the last one)
-		if i < len(stockList)-1 {
-			log.Printf("Waiting 2 seconds before processing next stock...")
-			time.Sleep(2 * time.Second)
-		}
 	}
 
 	log.Printf("Analysis completed. Total analyzed: %d, Buy signals: %d, Hold signals: %d", len(buyList)+len(holdList), len(buyList), len(holdList))
