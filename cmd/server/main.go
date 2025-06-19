@@ -78,7 +78,7 @@ func main() {
 	}
 
 	// Initialize services
-	yahooClient := yahoo_finance.NewClient(&cfg.Yahoo)
+	yahooClient := yahoo_finance.NewClient(&cfg.Yahoo, logger)
 	geminiClient := gemini_ai.NewClient(&cfg.Gemini, logger, genClient)
 	analyzer := trading_analysis.NewAnalyzer(yahooClient, geminiClient, logger, stockNewsSummaryRepo)
 

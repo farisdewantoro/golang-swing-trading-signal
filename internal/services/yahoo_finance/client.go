@@ -12,17 +12,21 @@ import (
 
 	"golang-swing-trading-signal/internal/config"
 	"golang-swing-trading-signal/internal/models"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Client struct {
 	config *config.YahooFinanceConfig
 	client *http.Client
+	logger *logrus.Logger
 }
 
-func NewClient(cfg *config.YahooFinanceConfig) *Client {
+func NewClient(cfg *config.YahooFinanceConfig, logger *logrus.Logger) *Client {
 	return &Client{
 		config: cfg,
 		client: &http.Client{Timeout: 30 * time.Second},
+		logger: logger,
 	}
 }
 
@@ -47,6 +51,10 @@ func (c *Client) GetOHLCData(symbol string, period1, period2 int64, interval str
 	params.Add("events", "div,split")
 
 	requestURL := baseURL + "?" + params.Encode()
+
+	c.logger.Debug("Fetching OHLC data from Yahoo Finance", logrus.Fields{
+		"url": requestURL,
+	})
 
 	// Create HTTP request
 	req, err := http.NewRequest("GET", requestURL, nil)
