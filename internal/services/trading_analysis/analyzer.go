@@ -20,14 +20,20 @@ type Analyzer struct {
 	geminiClient               *gemini_ai.Client
 	logger                     *logrus.Logger
 	stockNewsSummaryRepository repository.StockNewsSummaryRepository
+	stockPositionRepository    repository.StockPositionRepository
+	userRepository             repository.UserRepository
+	unitOfWork                 repository.UnitOfWork
 }
 
-func NewAnalyzer(yahooClient *yahoo_finance.Client, geminiClient *gemini_ai.Client, logger *logrus.Logger, stockNewsSummaryRepository repository.StockNewsSummaryRepository) *Analyzer {
+func NewAnalyzer(yahooClient *yahoo_finance.Client, geminiClient *gemini_ai.Client, logger *logrus.Logger, stockNewsSummaryRepository repository.StockNewsSummaryRepository, stockPositionRepository repository.StockPositionRepository, userRepository repository.UserRepository, unitOfWork repository.UnitOfWork) *Analyzer {
 	return &Analyzer{
 		yahooClient:                yahooClient,
 		geminiClient:               geminiClient,
 		logger:                     logger,
 		stockNewsSummaryRepository: stockNewsSummaryRepository,
+		stockPositionRepository:    stockPositionRepository,
+		userRepository:             userRepository,
+		unitOfWork:                 unitOfWork,
 	}
 }
 
@@ -215,4 +221,108 @@ func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string) (*m
 		HoldCount:    len(holdList),
 		Summary:      summary,
 	}, nil
+}
+
+// SetPosition
+func (a *Analyzer) SetStockPosition(ctx context.Context, request *models.RequestSetPositionData) error {
+	user, err := a.userRepository.GetUserByTelegramID(ctx, request.UserTelegram.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	positions, err := a.stockPositionRepository.GetList(ctx, models.StockPositionQueryParam{
+		TelegramIDs: []int64{request.UserTelegram.ID},
+		IsActive:    true,
+		StockCodes:  []string{request.Symbol},
+	})
+
+	if err != nil {
+		a.logger.WithError(err).Error("failed to get positions", logrus.Fields{
+			"telegram_id": request.UserTelegram.ID,
+			"symbol":      request.Symbol,
+		})
+		return fmt.Errorf("failed to get positions: %w", err)
+	}
+
+	if len(positions) > 0 {
+		a.logger.Warn("position already exists", logrus.Fields{
+			"telegram_id": request.UserTelegram.ID,
+			"symbol":      request.Symbol,
+		})
+		return fmt.Errorf("position already exists")
+	}
+
+	err = a.unitOfWork.Run(func(opts ...utils.DBOption) error {
+		if user == nil {
+			user = request.UserTelegram.ToUserEntity()
+			a.logger.Infof("User %d not found, creating new user", request.UserTelegram.ID)
+			if errInner := a.userRepository.CreateUser(ctx, user, opts...); errInner != nil {
+				return errInner
+			}
+		}
+
+		stockPosition := request.ToStockPositionEntity()
+		stockPosition.UserID = user.ID
+		stockPosition.IsActive = true
+		return a.stockPositionRepository.Create(ctx, stockPosition, opts...)
+	})
+
+	if err != nil {
+		a.logger.Error("failed to set position", logrus.Fields{
+			"error": err,
+		})
+		return fmt.Errorf("failed to set position: %w", err)
+	}
+	return nil
+}
+
+func (a *Analyzer) GetStockPositionsTelegramUser(ctx context.Context, telegramID int64) ([]models.StockPositionEntity, error) {
+
+	position, err := a.stockPositionRepository.GetList(ctx, models.StockPositionQueryParam{
+		TelegramIDs: []int64{telegramID},
+		IsActive:    true,
+	})
+
+	if err != nil {
+		a.logger.Error("failed to get stock positions", logrus.Fields{
+			"error": err,
+		})
+		return nil, fmt.Errorf("failed to get stock positions: %w", err)
+	}
+	return position, nil
+}
+
+func (a *Analyzer) MonitorPositionTelegramUser(ctx context.Context, request *models.PositionMonitoringTelegramUserRequest) (*models.PositionMonitoringResponse, error) {
+	a.logger.Debug("monitoring position", logrus.Fields{
+		"telegram_id": request.TelegramID,
+		"symbol":      request.Symbol,
+	})
+	positions, err := a.stockPositionRepository.GetList(ctx, models.StockPositionQueryParam{
+		TelegramIDs: []int64{request.TelegramID},
+		IsActive:    true,
+		StockCodes:  []string{request.Symbol},
+	})
+	if err != nil {
+		a.logger.Error("failed to get stock positions", logrus.Fields{
+			"error": err,
+		})
+		return nil, fmt.Errorf("failed to get stock positions: %w", err)
+	}
+
+	if len(positions) == 0 {
+		a.logger.Warn("position not found", logrus.Fields{
+			"telegram_id": request.TelegramID,
+			"symbol":      request.Symbol,
+		})
+		return nil, fmt.Errorf("position not found")
+	}
+
+	return a.MonitorPosition(ctx, models.PositionMonitoringRequest{
+		Symbol:               request.Symbol,
+		BuyPrice:             positions[0].BuyPrice,
+		BuyTime:              positions[0].BuyDate,
+		MaxHoldingPeriodDays: positions[0].MaxHoldingPeriodDays,
+		Interval:             request.Interval,
+		Period:               request.Period,
+	})
 }

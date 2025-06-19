@@ -23,13 +23,14 @@ const (
 	StateIdle = iota // 0
 
 	// /setposition states
-	StateWaitingSymbol     // 1
-	StateWaitingBuyPrice   // 2
-	StateWaitingBuyDate    // 3
-	StateWaitingTakeProfit // 4
-	StateWaitingStopLoss   // 5
-	StateWaitingMaxHolding // 6
-	StateWaitingAlertPrice // 7
+	StateWaitingSetPositionSymbol       = 1
+	StateWaitingSetPositionBuyPrice     = 2
+	StateWaitingSetPositionBuyDate      = 3
+	StateWaitingSetPositionTakeProfit   = 4
+	StateWaitingSetPositionStopLoss     = 5
+	StateWaitingSetPositionMaxHolding   = 6
+	StateWaitingSetPositionAlertPrice   = 7
+	StateWaitingSetPositionAlertMonitor = 8
 
 	// /analyze position states
 	StateWaitingAnalysisPositionSymbol   = 10
@@ -48,39 +49,18 @@ const (
 	StateWaitingGeneralAnalysisPeriod   = 31
 )
 
-// positionData holds the temporary data for the /setposition command
-type positionData struct {
-	Symbol         string
-	BuyPrice       float64
-	BuyDate        string
-	TakeProfit     float64
-	StopLoss       float64
-	MaxHolding     int
-	AlertPrice     bool
-}
-
-// analysisPositionData holds the temporary data for the /analyze position command
-type analysisPositionData struct {
-	Symbol    string
-	BuyPrice  float64
-	BuyDate   string
-	MaxDays   int
-	Interval  string
-	Period    string
-}
-
 type TelegramBotService struct {
-	bot              *telebot.Bot
-	config           *config.TelegramConfig
-	tradingConfig    *config.TradingConfig
-	logger           *logrus.Logger
-	analyzer         *trading_analysis.Analyzer
-	router           *gin.Engine
-	ctx              context.Context
-	cancel           context.CancelFunc
-	userStates       map[int64]int           // UserID -> State
-	userPositionData map[int64]*positionData // UserID -> Data for /setposition
-	userAnalysisPositionData map[int64]*analysisPositionData  // UserID -> Data for /analyze
+	bot                      *telebot.Bot
+	config                   *config.TelegramConfig
+	tradingConfig            *config.TradingConfig
+	logger                   *logrus.Logger
+	analyzer                 *trading_analysis.Analyzer
+	router                   *gin.Engine
+	ctx                      context.Context
+	cancel                   context.CancelFunc
+	userStates               map[int64]int                                 // UserID -> State
+	userPositionData         map[int64]*models.RequestSetPositionData      // UserID -> Data for /setposition
+	userAnalysisPositionData map[int64]*models.RequestAnalysisPositionData // UserID -> Data for /analyze
 }
 
 func NewTelegramBotService(cfg *config.TelegramConfig, tradingConfig *config.TradingConfig, logger *logrus.Logger, analyzer *trading_analysis.Analyzer, router *gin.Engine) (*TelegramBotService, error) {
@@ -105,75 +85,23 @@ func NewTelegramBotService(cfg *config.TelegramConfig, tradingConfig *config.Tra
 	ctx, cancel := context.WithCancel(context.Background())
 
 	service := &TelegramBotService{
-		bot:              bot,
-		config:           cfg,
-		tradingConfig:    tradingConfig,
-		logger:           logger,
-		analyzer:         analyzer,
-		router:           router,
-		ctx:              ctx,
-		cancel:           cancel,
-		userStates:       make(map[int64]int),
-		userPositionData: make(map[int64]*positionData),
-		userAnalysisPositionData: make(map[int64]*analysisPositionData),
+		bot:                      bot,
+		config:                   cfg,
+		tradingConfig:            tradingConfig,
+		logger:                   logger,
+		analyzer:                 analyzer,
+		router:                   router,
+		ctx:                      ctx,
+		cancel:                   cancel,
+		userStates:               make(map[int64]int),
+		userPositionData:         make(map[int64]*models.RequestSetPositionData),
+		userAnalysisPositionData: make(map[int64]*models.RequestAnalysisPositionData),
 	}
 
 	// Register handlers
 	service.registerHandlers()
 
 	return service, nil
-}
-
-func (t *TelegramBotService) SendPositionMonitoringNotification(position *models.PositionMonitoringResponse) error {
-	if t.config.ChatID == "" {
-		t.logger.Warn("Telegram chat ID not configured, skipping notification")
-		return nil
-	}
-
-	chatID, err := strconv.ParseInt(t.config.ChatID, 10, 64)
-	if err != nil {
-		return fmt.Errorf("invalid chat ID: %w", err)
-	}
-
-	message := t.FormatPositionMonitoringMessage(position)
-
-	_, err = t.bot.Send(&telebot.Chat{ID: chatID}, message, &telebot.SendOptions{
-		ParseMode: telebot.ModeHTML,
-	})
-
-	if err != nil {
-		t.logger.WithError(err).Error("Failed to send position monitoring notification")
-		return err
-	}
-
-	t.logger.WithField("symbol", position.Symbol).Info("Position monitoring notification sent")
-	return nil
-}
-
-func (t *TelegramBotService) SendBulkPositionMonitoringNotification(positions []models.PositionMonitoringResponse) error {
-	if t.config.ChatID == "" {
-		t.logger.Warn("Telegram chat ID not configured, skipping notification")
-		return nil
-	}
-
-	chatID, err := strconv.ParseInt(t.config.ChatID, 10, 64)
-	if err != nil {
-		return fmt.Errorf("invalid chat ID: %w", err)
-	}
-
-	messages := t.FormatBulkPositionMonitoringMessage(positions)
-
-	for _, message := range messages {
-		_, err = t.bot.Send(&telebot.Chat{ID: chatID}, message, &telebot.SendOptions{
-			ParseMode: telebot.ModeHTML,
-		})
-		if err != nil {
-			t.logger.WithError(err).Error("Failed to send position monitoring notification")
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (t *TelegramBotService) Start() {
@@ -243,4 +171,68 @@ func (t *TelegramBotService) Stop() {
 	}
 
 	t.logger.Info("Telegram bot shutdown completed")
+}
+
+func (t *TelegramBotService) CleanUpUsersStates() {
+	t.userStates = make(map[int64]int)
+	t.userPositionData = make(map[int64]*models.RequestSetPositionData)
+	t.userAnalysisPositionData = make(map[int64]*models.RequestAnalysisPositionData)
+}
+
+func (t *TelegramBotService) ResetUserState(userID int64) {
+	delete(t.userStates, userID)
+	delete(t.userPositionData, userID)
+	delete(t.userAnalysisPositionData, userID)
+}
+
+func (t *TelegramBotService) SendPositionMonitoringNotification(position *models.PositionMonitoringResponse) error {
+	if t.config.ChatID == "" {
+		t.logger.Warn("Telegram chat ID not configured, skipping notification")
+		return nil
+	}
+
+	chatID, err := strconv.ParseInt(t.config.ChatID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid chat ID: %w", err)
+	}
+
+	message := t.FormatPositionMonitoringMessage(position)
+
+	_, err = t.bot.Send(&telebot.Chat{ID: chatID}, message, &telebot.SendOptions{
+		ParseMode: telebot.ModeHTML,
+	})
+
+	if err != nil {
+		t.logger.WithError(err).Error("Failed to send position monitoring notification")
+		return err
+	}
+
+	t.logger.WithField("symbol", position.Symbol).Info("Position monitoring notification sent")
+	return nil
+}
+
+func (t *TelegramBotService) SendBulkPositionMonitoringNotification(positions []models.PositionMonitoringResponse) error {
+	if t.config.ChatID == "" {
+		t.logger.Warn("Telegram chat ID not configured, skipping notification")
+		return nil
+	}
+
+	chatID, err := strconv.ParseInt(t.config.ChatID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid chat ID: %w", err)
+	}
+
+	messages := t.FormatBulkPositionMonitoringMessage(positions)
+
+	for _, message := range messages {
+		_, err = t.bot.Send(&telebot.Chat{ID: chatID}, message, &telebot.SendOptions{
+			ParseMode: telebot.ModeHTML,
+		})
+		if err != nil {
+			t.logger.WithError(err).Error("Failed to send position monitoring notification")
+			return err
+		}
+	}
+
+	return nil
 }

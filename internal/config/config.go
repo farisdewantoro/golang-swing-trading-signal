@@ -15,6 +15,11 @@ type Config struct {
 	Trading  TradingConfig      `mapstructure:"trading"`
 	Telegram TelegramConfig     `mapstructure:"telegram"`
 	Database postgres.Config    `mapstructure:"database"`
+	Log      LogConfig          `mapstructure:"log"`
+}
+
+type LogConfig struct {
+	Level string `mapstructure:"level"`
 }
 
 type ServerConfig struct {
@@ -86,6 +91,9 @@ func LoadConfig() (*Config, error) {
 			DefaultMaxHoldingPeriodDays: viper.GetInt("DEFAULT_MAX_HOLDING_PERIOD_DAYS"),
 			ConfidenceThreshold:         viper.GetInt("CONFIDENCE_THRESHOLD"),
 			StockList:                   stockList,
+		},
+		Log: LogConfig{
+			Level: viper.GetString("LOG_LEVEL"),
 		},
 		Telegram: TelegramConfig{
 			BotToken:   viper.GetString("TELEGRAM_BOT_TOKEN"),

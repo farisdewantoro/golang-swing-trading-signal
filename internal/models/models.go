@@ -2,8 +2,6 @@ package models
 
 import (
 	"time"
-
-	"github.com/lib/pq"
 )
 
 // OHLCV Data Structure
@@ -277,23 +275,9 @@ type SummaryStatistics struct {
 	WorstOpportunity string `json:"worst_opportunity"`
 }
 
-// StockNewsSummary represents a summary of news articles for a specific stock.
-type StockNewsSummaryEntity struct {
-	ID                     uint           `gorm:"primaryKey" json:"id"`
-	StockCode              string         `gorm:"type:varchar(50);not null" json:"stock_code"`
-	SummarySentiment       string         `gorm:"type:varchar(50)" json:"summary_sentiment"`
-	SummaryImpact          string         `gorm:"type:varchar(50)" json:"summary_impact"`
-	SummaryConfidenceScore float64        `json:"summary_confidence_score"`
-	KeyIssues              pq.StringArray `gorm:"type:text[]" json:"key_issues"`
-	SuggestedAction        string         `gorm:"type:varchar(10)" json:"suggested_action"`
-	Reasoning              string         `gorm:"type:text" json:"reasoning"`
-	ShortSummary           string         `gorm:"type:text" json:"short_summary"`
-	SummaryStart           time.Time      `json:"summary_start"`
-	SummaryEnd             time.Time      `json:"summary_end"`
-	CreatedAt              time.Time      `gorm:"autoCreateTime" json:"created_at"`
-}
-
-// TableName specifies the table name for the StockNewsSummary model.
-func (StockNewsSummaryEntity) TableName() string {
-	return "stock_news_summary"
+type PositionMonitoringTelegramUserRequest struct {
+	TelegramID int64  `json:"telegram_id" binding:"required"`
+	Symbol     string `json:"symbol" binding:"required"`
+	Interval   string `json:"interval"`
+	Period     string `json:"period"`
 }

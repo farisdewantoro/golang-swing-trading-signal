@@ -35,6 +35,13 @@ func main() {
 		logger.WithError(err).Fatal("Failed to load configuration")
 	}
 
+	logrusLevel, err := logrus.ParseLevel(cfg.Log.Level)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to parse log level")
+	}
+
+	logger.SetLevel(logrusLevel)
+
 	// Set Gin mode based on environment
 	if cfg.Server.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -70,6 +77,9 @@ func main() {
 
 	// Initialize repositories
 	stockNewsSummaryRepo := repository.NewStockNewsSummaryRepository(db.DB)
+	stockPositionRepo := repository.NewStockPositionRepository(db.DB)
+	userRepo := repository.NewUserRepository(db.DB)
+	unitOfWork := repository.NewUnitOfWork(db.DB)
 	genClient, err := genai.NewClient(context.Background(), &genai.ClientConfig{
 		APIKey: cfg.Gemini.APIKey,
 	})
@@ -80,7 +90,7 @@ func main() {
 	// Initialize services
 	yahooClient := yahoo_finance.NewClient(&cfg.Yahoo, logger)
 	geminiClient := gemini_ai.NewClient(&cfg.Gemini, logger, genClient)
-	analyzer := trading_analysis.NewAnalyzer(yahooClient, geminiClient, logger, stockNewsSummaryRepo)
+	analyzer := trading_analysis.NewAnalyzer(yahooClient, geminiClient, logger, stockNewsSummaryRepo, stockPositionRepo, userRepo, unitOfWork)
 
 	// Initialize Telegram bot service
 	var telegramService *telegram_bot.TelegramBotService

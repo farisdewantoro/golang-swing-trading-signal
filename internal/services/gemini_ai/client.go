@@ -159,7 +159,7 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 	}
 
 	// Create HTTP request
-	req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequestWithContext(ctx, "POST", requestURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}

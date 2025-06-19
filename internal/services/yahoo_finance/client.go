@@ -203,6 +203,8 @@ func (c *Client) MapPeriodeStringToUnix(periode string) (int64, int64) {
 	switch periode {
 	case "1d":
 		return now.AddDate(0, 0, -1).Unix(), now.Unix()
+	case "14d":
+		return now.AddDate(0, 0, -14).Unix(), now.Unix()
 	case "1w":
 		return now.AddDate(0, 0, -7).Unix(), now.Unix()
 	case "1m":
