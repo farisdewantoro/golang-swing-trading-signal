@@ -505,8 +505,8 @@ Return response dalam format JSON:
     "key_issues": ["issue1", "issue2", "issue3"]
   }
 }`, request.Symbol, newsSummaryText, request.BuyPrice, request.BuyTime.Format("2006-01-02T15:04:05-07:00"),
-		request.MaxHoldingPeriodDays, positionAgeDays, remainingDays, dataInfo.MarketPrice, dataInfo.Range, string(ohlcvJSON),
-		remainingDays, request.Symbol, request.MaxHoldingPeriodDays,
+		request.MaxHoldingPeriodDays, positionAgeDays, remainingDays, dataInfo.Range, string(ohlcvJSON),
+		dataInfo.MarketPrice, remainingDays, request.Symbol, request.MaxHoldingPeriodDays,
 		remainingDays, remainingDays, remainingDays, remainingDays, remainingDays)
 
 	return prompt
