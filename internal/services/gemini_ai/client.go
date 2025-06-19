@@ -248,6 +248,8 @@ Gunakan ringkasan ini untuk mempertimbangkan konteks eksternal (berita) dalam an
 Data OHLC %s:
 %s
 
+Current Market Price: %.2f (ini adalah harga pasar saat ini)
+
 Analisis teknikal yang diperlukan:
 1. Trend: BULLISH/BEARISH/SIDEWAYS (short-term 1-3 hari, medium-term 1-2 minggu)
 2. Technical indicators:
@@ -335,7 +337,7 @@ Return response dalam format JSON:
     "impact": "bullish, bearish, sideways"
     "key_issues": ["issue1", "issue2", "issue3"]
   }
-}`, symbol, newsSummaryText, dataInfo.Range, string(ohlcvJSON), symbol, time.Now().Format("2006-01-02T15:04:05-07:00"))
+}`, symbol, newsSummaryText, dataInfo.Range, string(ohlcvJSON), dataInfo.MarketPrice, symbol, time.Now().Format("2006-01-02T15:04:05-07:00"))
 
 	return prompt
 }
@@ -395,8 +397,11 @@ Data posisi trading:
 - Position Age: %d days
 - Remaining Days: %d days
 
+
 Data OHLC %s:
 %s
+
+Current Market Price: %.2f (ini adalah harga pasar saat ini)
 
 Analisis yang diperlukan:
 1. Hitung current profit/loss dan percentage
@@ -500,7 +505,7 @@ Return response dalam format JSON:
     "key_issues": ["issue1", "issue2", "issue3"]
   }
 }`, request.Symbol, newsSummaryText, request.BuyPrice, request.BuyTime.Format("2006-01-02T15:04:05-07:00"),
-		request.MaxHoldingPeriodDays, positionAgeDays, remainingDays, dataInfo.Range, string(ohlcvJSON),
+		request.MaxHoldingPeriodDays, positionAgeDays, remainingDays, dataInfo.MarketPrice, dataInfo.Range, string(ohlcvJSON),
 		remainingDays, request.Symbol, request.MaxHoldingPeriodDays,
 		remainingDays, remainingDays, remainingDays, remainingDays, remainingDays)
 
