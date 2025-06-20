@@ -15,7 +15,6 @@ func SetupRoutes(router *gin.Engine, tradingHandler *handlers.TradingHandler, te
 	{
 		// Trading analysis endpoints
 		v1.GET("/analyze", tradingHandler.AnalyzeStock)
-		v1.GET("/analyze-all", tradingHandler.AnalyzeAllStocks)
 		v1.POST("/monitor-position", tradingHandler.MonitorPosition)
 		v1.POST("/bulk-monitor-position", tradingHandler.BulkMonitorPosition)
 

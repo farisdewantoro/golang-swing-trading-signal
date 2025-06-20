@@ -995,15 +995,19 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 
 	startTime := utils.TimeNowWIB()
 	stopChan := make(chan struct{})
-
+	parts := strings.Split(dataInputTimeFrameEntry, "|")
+	if len(parts) != 3 {
+		return c.Edit(commonMessageInternalError, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
+	}
+	interval, rng := parts[1], parts[2]
 	// Mulai loading animasi
 	msg := t.showLoadingFlowAnalysis(c, stopChan)
 
-	go func() {
-		newCtx, cancel := context.WithTimeout(ctx, t.config.TimeoutBuyListDuration)
+	utils.SafeGo(func() {
+		newCtx, cancel := context.WithTimeout(t.ctx, t.config.TimeoutBuyListDuration)
 		defer cancel()
 
-		summary, err := t.analyzer.AnalyzeAllStocks(newCtx, t.tradingConfig.StockList)
+		summary, err := t.analyzer.AnalyzeAllStocks(newCtx, t.tradingConfig.StockList, interval, rng)
 		if err != nil {
 			close(stopChan)
 			t.logger.WithError(err).Error("Failed to analyze stock")
@@ -1038,7 +1042,7 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 			}
 		}
 
-	}()
+	})
 
 	return nil
 }

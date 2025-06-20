@@ -159,25 +159,6 @@ func (h *TradingHandler) validatePositionRequest(request *models.PositionMonitor
 	return nil
 }
 
-// AnalyzeAllStocks handles GET /analyze-all
-func (h *TradingHandler) AnalyzeAllStocks(c *gin.Context) {
-
-	// Perform analysis on all stocks
-	summary, err := h.analyzer.AnalyzeAllStocks(c, h.cfg.Trading.StockList)
-	if err != nil {
-		h.logger.WithError(err).Error("Failed to analyze all stocks")
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Error:   "ANALYSIS_FAILED",
-			Message: "Failed to analyze all stocks: " + err.Error(),
-			Code:    http.StatusInternalServerError,
-		})
-		return
-	}
-
-	h.logger.WithField("total_stocks", summary.TotalStocks).Info("All stocks analysis completed successfully")
-	c.JSON(http.StatusOK, summary)
-}
-
 // MonitorPosition handles POST /bulk-monitor-position
 func (h *TradingHandler) BulkMonitorPosition(c *gin.Context) {
 	var request []models.PositionMonitoringRequest

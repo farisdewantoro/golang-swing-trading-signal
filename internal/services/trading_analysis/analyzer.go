@@ -143,7 +143,7 @@ func (a *Analyzer) ValidateSymbol(ctx context.Context, symbol string) error {
 }
 
 // AnalyzeAllStocks analyzes all stocks from configuration and returns summary
-func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string) (*models.SummaryAnalysisResponse, error) {
+func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string, interval, period string) (*models.SummaryAnalysisResponse, error) {
 	var buyList []models.StockSummary
 	var holdList []models.StockSummary
 
@@ -158,7 +158,7 @@ func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string) (*m
 	for i, symbol := range stockList {
 		log.Printf("[%d/%d] Analyzing stock: %s", i+1, len(stockList), symbol)
 
-		analysis, err := a.AnalyzeStock(ctx, symbol, "", "")
+		analysis, err := a.AnalyzeStock(ctx, symbol, interval, period)
 		if err != nil {
 			// Log error but continue with other stocks
 			log.Printf("Error analyzing %s: %v", symbol, err)

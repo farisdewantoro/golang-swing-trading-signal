@@ -508,9 +508,25 @@ func (t *TelegramBotService) ShowAnalysisInProgress(stockCode string, interval s
 
 func (t *TelegramBotService) showLoadingFlowAnalysis(c telebot.Context, stop <-chan struct{}) *telebot.Message {
 	msgRoot := c.Message()
-
 	initial := "Sedang menganalisis saham kamu, mohon tunggu"
-	msg, _ := t.bot.Edit(msgRoot, initial)
+
+	var msg *telebot.Message
+	var err error
+
+	// Cek apakah pesan terakhir berasal dari bot
+	if msgRoot == nil || msgRoot.Sender == nil || !msgRoot.Sender.IsBot {
+		msg, err = t.bot.Send(c.Chat(), initial, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
+		if err != nil {
+			t.logger.WithError(err).Error("Failed to send loading message")
+			return nil
+		}
+	} else {
+		msg, err = t.bot.Edit(msgRoot, initial)
+		if err != nil {
+			t.logger.WithError(err).Error("Failed to edit loading message")
+			return nil
+		}
+	}
 
 	go func() {
 		dots := []string{"⏳", "⏳⏳", "⏳⏳⏳"}
@@ -518,10 +534,13 @@ func (t *TelegramBotService) showLoadingFlowAnalysis(c telebot.Context, stop <-c
 		for {
 			select {
 			case <-stop:
-				// Stop signal diterima, keluar dari loop
 				return
 			default:
-				t.bot.Edit(msg, fmt.Sprintf("%s%s", initial, dots[i%len(dots)]))
+				_, err := t.bot.Edit(msg, fmt.Sprintf("%s%s", initial, dots[i%len(dots)]))
+				if err != nil {
+					t.logger.WithError(err).Error("Failed to update loading animation")
+					return
+				}
 				i++
 				time.Sleep(200 * time.Millisecond)
 			}
