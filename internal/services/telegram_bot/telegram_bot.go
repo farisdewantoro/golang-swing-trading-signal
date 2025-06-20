@@ -44,9 +44,10 @@ const (
 	StateWaitingAnalyzeSymbol = 20
 	StateWaitingAnalysisType  = 21
 
-	// /analyze -> General Analysis states
-	StateWaitingGeneralAnalysisInterval = 30
-	StateWaitingGeneralAnalysisPeriod   = 31
+	// exit position states
+	StateWaitingExitPositionInputExitPrice = 30
+	StateWaitingExitPositionInputExitDate  = 31
+	StateWaitingExitPositionConfirm        = 32
 )
 
 type TelegramBotService struct {
@@ -61,6 +62,7 @@ type TelegramBotService struct {
 	userStates               map[int64]int                                 // UserID -> State
 	userPositionData         map[int64]*models.RequestSetPositionData      // UserID -> Data for /setposition
 	userAnalysisPositionData map[int64]*models.RequestAnalysisPositionData // UserID -> Data for /analyze
+	userExitPositionData     map[int64]*models.RequestExitPositionData     // UserID -> Data for /exitposition
 }
 
 func NewTelegramBotService(cfg *config.TelegramConfig, tradingConfig *config.TradingConfig, logger *logrus.Logger, analyzer *trading_analysis.Analyzer, router *gin.Engine) (*TelegramBotService, error) {
@@ -96,6 +98,7 @@ func NewTelegramBotService(cfg *config.TelegramConfig, tradingConfig *config.Tra
 		userStates:               make(map[int64]int),
 		userPositionData:         make(map[int64]*models.RequestSetPositionData),
 		userAnalysisPositionData: make(map[int64]*models.RequestAnalysisPositionData),
+		userExitPositionData:     make(map[int64]*models.RequestExitPositionData),
 	}
 
 	// Register handlers
@@ -106,6 +109,8 @@ func NewTelegramBotService(cfg *config.TelegramConfig, tradingConfig *config.Tra
 
 func (t *TelegramBotService) Start() {
 	t.logger.Info("Starting Telegram bot...")
+
+	t.RegisterMiddleware()
 
 	// If webhook URL is configured, set it up
 	if t.config.WebhookURL != "" {
@@ -183,6 +188,7 @@ func (t *TelegramBotService) ResetUserState(userID int64) {
 	delete(t.userStates, userID)
 	delete(t.userPositionData, userID)
 	delete(t.userAnalysisPositionData, userID)
+	delete(t.userExitPositionData, userID)
 }
 
 func (t *TelegramBotService) SendPositionMonitoringNotification(position *models.PositionMonitoringResponse) error {

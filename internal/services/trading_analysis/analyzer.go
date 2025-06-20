@@ -263,7 +263,7 @@ func (a *Analyzer) SetStockPosition(ctx context.Context, request *models.Request
 
 		stockPosition := request.ToStockPositionEntity()
 		stockPosition.UserID = user.ID
-		stockPosition.IsActive = true
+		stockPosition.IsActive = utils.ToPointer(true)
 		return a.stockPositionRepository.Create(ctx, stockPosition, opts...)
 	})
 
@@ -325,4 +325,104 @@ func (a *Analyzer) MonitorPositionTelegramUser(ctx context.Context, request *mod
 		Interval:             request.Interval,
 		Period:               request.Period,
 	})
+}
+
+func (a *Analyzer) CreateTelegramUserIfNotExist(ctx context.Context, req *models.RequestUserTelegram) error {
+	user, err := a.userRepository.GetUserByTelegramID(ctx, req.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	if user == nil {
+		if err := a.userRepository.CreateUser(ctx, req.ToUserEntity()); err != nil {
+			return fmt.Errorf("failed to create user: %w", err)
+		}
+	}
+	return nil
+}
+
+func (a *Analyzer) GetStockPosition(ctx context.Context, param models.StockPositionQueryParam) ([]models.StockPositionEntity, error) {
+	positions, err := a.stockPositionRepository.GetList(ctx, param)
+	if err != nil {
+		a.logger.Error("failed to get stock positions", logrus.Fields{
+			"error": err,
+		})
+		return nil, fmt.Errorf("failed to get stock positions: %w", err)
+	}
+
+	if len(positions) == 0 {
+		a.logger.Warn("position not found", logrus.Fields{
+			"telegram_id": param.TelegramIDs,
+			"id":          param.IDs,
+		})
+		return nil, fmt.Errorf("position not found")
+	}
+
+	return positions, nil
+}
+
+func (a *Analyzer) DeleteStockPositionTelegramUser(ctx context.Context, telegramID int64, stockPositionID uint) error {
+	positions, err := a.stockPositionRepository.GetList(ctx, models.StockPositionQueryParam{
+		TelegramIDs: []int64{telegramID},
+		IDs:         []uint{stockPositionID},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get stock positions: %w", err)
+	}
+
+	if len(positions) == 0 {
+		return fmt.Errorf("position not found")
+	}
+
+	return a.stockPositionRepository.Delete(ctx, &positions[0])
+}
+
+func (a *Analyzer) UpdateStockPositionTelegramUser(ctx context.Context, telegramID int64, stockPositionID uint, update *models.StockPositionUpdateRequest) error {
+	positions, err := a.stockPositionRepository.GetList(ctx, models.StockPositionQueryParam{
+		TelegramIDs: []int64{telegramID},
+		IDs:         []uint{stockPositionID},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get stock positions: %w", err)
+	}
+
+	if len(positions) == 0 {
+		return fmt.Errorf("position not found")
+	}
+
+	newUpdate := positions[0]
+
+	if update.BuyPrice != nil {
+		newUpdate.BuyPrice = *update.BuyPrice
+	}
+
+	if update.BuyDate != nil {
+		newUpdate.BuyDate = *update.BuyDate
+	}
+
+	if update.MaxHoldingPeriodDays != nil {
+		newUpdate.MaxHoldingPeriodDays = *update.MaxHoldingPeriodDays
+	}
+
+	if update.PriceAlert != nil {
+		newUpdate.PriceAlert = update.PriceAlert
+	}
+
+	if update.MonitorPosition != nil {
+		newUpdate.MonitorPosition = update.MonitorPosition
+	}
+
+	if update.ExitPrice != nil {
+		newUpdate.ExitPrice = update.ExitPrice
+	}
+
+	if update.ExitDate != nil {
+		newUpdate.ExitDate = update.ExitDate
+	}
+
+	if update.IsActive != nil {
+		newUpdate.IsActive = update.IsActive
+	}
+
+	return a.stockPositionRepository.Update(ctx, &newUpdate)
 }

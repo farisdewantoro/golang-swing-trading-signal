@@ -61,8 +61,8 @@ func (r *RequestSetPositionData) ToStockPositionEntity() *StockPositionEntity {
 		TakeProfitPrice:      r.TakeProfit,
 		StopLossPrice:        r.StopLoss,
 		MaxHoldingPeriodDays: r.MaxHolding,
-		PriceAlert:           r.AlertPrice,
-		MonitorPosition:      r.AlertMonitor,
+		PriceAlert:           utils.ToPointer(r.AlertPrice),
+		MonitorPosition:      utils.ToPointer(r.AlertMonitor),
 	}
 }
 
@@ -73,4 +73,11 @@ type RequestAnalysisPositionData struct {
 	MaxDays  int
 	Interval string
 	Period   string
+}
+
+type RequestExitPositionData struct {
+	Symbol          string
+	ExitPrice       float64
+	ExitDate        time.Time
+	StockPositionID uint
 }

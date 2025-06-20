@@ -4,6 +4,7 @@ import (
 	"golang-swing-trading-signal/pkg/postgres"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -46,9 +47,10 @@ type TradingConfig struct {
 }
 
 type TelegramConfig struct {
-	BotToken   string
-	ChatID     string
-	WebhookURL string
+	BotToken        string
+	ChatID          string
+	WebhookURL      string
+	TimeoutDuration time.Duration
 }
 
 func LoadConfig() (*Config, error) {
@@ -96,9 +98,10 @@ func LoadConfig() (*Config, error) {
 			Level: viper.GetString("LOG_LEVEL"),
 		},
 		Telegram: TelegramConfig{
-			BotToken:   viper.GetString("TELEGRAM_BOT_TOKEN"),
-			ChatID:     viper.GetString("TELEGRAM_CHAT_ID"),
-			WebhookURL: viper.GetString("TELEGRAM_WEBHOOK_URL"),
+			BotToken:        viper.GetString("TELEGRAM_BOT_TOKEN"),
+			ChatID:          viper.GetString("TELEGRAM_CHAT_ID"),
+			WebhookURL:      viper.GetString("TELEGRAM_WEBHOOK_URL"),
+			TimeoutDuration: viper.GetDuration("TELEGRAM_TIMEOUT_DURATION"),
 		},
 		Database: postgres.Config{
 			Host:            viper.GetString("DATABASE_HOST"),

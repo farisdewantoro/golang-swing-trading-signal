@@ -64,6 +64,11 @@ func (r *stockPositionRepository) GetList(ctx context.Context, queryParam models
 		params = append(params, queryParam.StockCodes)
 	}
 
+	if len(queryParam.IDs) > 0 {
+		conditions = append(conditions, "sp.id IN ?")
+		params = append(params, queryParam.IDs)
+	}
+
 	if queryParam.IsActive {
 		conditions = append(conditions, "sp.is_active = ?")
 		params = append(params, true)

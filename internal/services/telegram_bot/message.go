@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/telebot.v3"
 )
 
 func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.PositionMonitoringResponse) string {
@@ -378,35 +380,110 @@ func (t *TelegramBotService) FormatMyPositionMessage(position models.StockPositi
 	gain := float64(position.TakeProfitPrice-position.BuyPrice) / float64(position.BuyPrice) * 100
 	loss := float64(position.BuyPrice-position.StopLossPrice) / float64(position.BuyPrice) * 100
 
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("(%d/%d) Monitoring Saham\n\n 📦", index, total))
-	sb.WriteString(fmt.Sprintf("💼 *%s*\n", position.StockCode))
-	sb.WriteString(fmt.Sprintf("💰 Buy: %.2f\n", position.BuyPrice))
-	sb.WriteString(fmt.Sprintf("🎯 TP: %.2f (+%.1f%%)\n", position.TakeProfitPrice, gain))
-	sb.WriteString(fmt.Sprintf("🛑 SL: %.2f (−%.1f%%)\n", position.StopLossPrice, loss))
-	sb.WriteString(fmt.Sprintf("📅 Buy Date: %s\n", position.BuyDate.Format("02 Jan 2006")))
-	sb.WriteString(fmt.Sprintf("⏳ Age: %d hari\n", age))
-	sb.WriteString(fmt.Sprintf("🗓️ Remaining: %d hari", remaining))
-	return sb.String()
+	alertStatus := "✅ Aktif"
+	if position.PriceAlert == nil || !*position.PriceAlert {
+		alertStatus = "❌ Tidak Aktif"
+	}
+
+	monitorStatus := "✅ Aktif"
+	if position.MonitorPosition == nil || !*position.MonitorPosition {
+		monitorStatus = "❌ Tidak Aktif"
+	}
+
+	return fmt.Sprintf(
+		"```\n📊 (%d/%d) Monitoring Saham\n\n"+
+			"📦 %s\n"+
+			"──────────────────────\n"+
+			"💰 Harga Beli   : %.2f\n"+
+			"🎯 Target Jual  : %.2f (+%.1f%%)\n"+
+			"🛑 Stop Loss    : %.2f (−%.1f%%)\n"+
+			"📅 Tgl Beli     : %s\n"+
+			"⏳ Umur Posisi  : %d hari\n"+
+			"⌛ Sisa Waktu   : %d hari\n"+
+			"──────────────────────\n"+
+			"🔔 Alert        : %s\n"+
+			"📡 Monitoring   : %s\n"+
+			"──────────────────────\n```",
+		index, total,
+		position.StockCode,
+		position.BuyPrice,
+		position.TakeProfitPrice, gain,
+		position.StopLossPrice, loss,
+		position.BuyDate.Format("02 Jan 2006"),
+		age,
+		remaining,
+		alertStatus,
+		monitorStatus,
+	)
 }
 
-func (t *TelegramBotService) FormatNotesTimeFrameStockPositionMessage() string {
+func (t *TelegramBotService) FormatMyStockPositionMessage(position models.StockPositionEntity) string {
+	now := time.Now()
+	age := int(now.Sub(position.BuyDate).Hours() / 24)
+	if age < 0 {
+		age = 0
+	}
+	remaining := position.MaxHoldingPeriodDays - age
+	if remaining < 0 {
+		remaining = 0
+	}
+
+	gain := float64(position.TakeProfitPrice-position.BuyPrice) / float64(position.BuyPrice) * 100
+	loss := float64(position.BuyPrice-position.StopLossPrice) / float64(position.BuyPrice) * 100
+
+	alertStatus := "✅ Aktif"
+	if position.PriceAlert == nil || !*position.PriceAlert {
+		alertStatus = "❌ Tidak Aktif"
+	}
+
+	monitorStatus := "✅ Aktif"
+	if position.MonitorPosition == nil || !*position.MonitorPosition {
+		monitorStatus = "❌ Tidak Aktif"
+	}
+
+	return fmt.Sprintf(
+		"```\n📊 Monitoring Saham\n\n"+
+			"📦 %s\n"+
+			"──────────────────────\n"+
+			"💰 Harga Beli   : %.2f\n"+
+			"🎯 Target Jual  : %.2f (+%.1f%%)\n"+
+			"🛑 Stop Loss    : %.2f (−%.1f%%)\n"+
+			"📅 Tgl Beli     : %s\n"+
+			"⏳ Umur Posisi  : %d hari\n"+
+			"⌛ Sisa Waktu   : %d hari\n"+
+			"──────────────────────\n"+
+			"🔔 Alert        : %s\n"+
+			"📡 Monitoring   : %s\n"+
+			"──────────────────────\n```",
+		position.StockCode,
+		position.BuyPrice,
+		position.TakeProfitPrice, gain,
+		position.StopLossPrice, loss,
+		position.BuyDate.Format("02 Jan 2006"),
+		age,
+		remaining,
+		alertStatus,
+		monitorStatus,
+	)
+}
+
+func (t *TelegramBotService) FormatNotesTimeFrameStockMessage() string {
 	return `
 Berikut adalah penjelasan singkat tentang setiap time frame:
 ━━━━━━━━━━━━━
 
 🔹 *Main Signal*  
-⏱️ 1 hari  |  📅 6 bulan  
+⏱️ Time Frame: 1 hari  |  📅 Range: 3 bulan  
 📌 Untuk melihat arah tren besar saham.  
 👉 Cocok kalau kamu ingin tahu apakah saham ini sedang bagus untuk dibeli.
 
 🔹 *Entry Presisi*  
-⏱️ 4 jam  |  📅 1 bulan  
+⏱️ Time Frame: 4 jam  |  📅 Range: 1 bulan  
 📌 Untuk cari waktu terbaik masuk setelah sinyal beli muncul.  
 👉 Cocok kalau kamu sudah yakin mau beli, tapi ingin harga yang lebih pas.
 
 🔹 *Exit Presisi*  
-⏱️ 1 jam  |  📅 14 hari  
+⏱️ Time Frame: 1 jam  |  📅 Range: 14 hari  
 📌 Untuk bantu kamu ambil untung atau cut loss.  
 👉 Cocok kalau kamu sudah punya saham dan ingin tahu kapan jual.
 `
@@ -414,7 +491,7 @@ Berikut adalah penjelasan singkat tentang setiap time frame:
 
 func (t *TelegramBotService) ShowAnalysisInProgress(stockCode string, interval string, period string) string {
 	return fmt.Sprintf(`
-📊 Sedang menganalisis *$%s*...
+🔍 Sedang menganalisis *$%s*...
 
 🕐 Interval: %s  
 📆 Range: %s
@@ -427,4 +504,54 @@ func (t *TelegramBotService) ShowAnalysisInProgress(stockCode string, interval s
 📬 Hasil analisa akan muncul dalam beberapa detik...
 `, stockCode, interval, period)
 
+}
+
+func (t *TelegramBotService) showLoadingFlowAnalysis(c telebot.Context, stop <-chan struct{}) *telebot.Message {
+	msgRoot := c.Message()
+
+	initial := "Sedang menganalisis saham kamu, mohon tunggu"
+	msg, _ := t.bot.Edit(msgRoot, initial)
+
+	go func() {
+		dots := []string{"⏳", "⏳⏳", "⏳⏳⏳"}
+		i := 0
+		for {
+			select {
+			case <-stop:
+				// Stop signal diterima, keluar dari loop
+				return
+			default:
+				t.bot.Edit(msg, fmt.Sprintf("%s%s", initial, dots[i%len(dots)]))
+				i++
+				time.Sleep(200 * time.Millisecond)
+			}
+		}
+	}()
+
+	return msg
+}
+
+func (t *TelegramBotService) showLoadingGeneral(c telebot.Context, stop <-chan struct{}) *telebot.Message {
+	msgRoot := c.Message()
+
+	initial := "Mohon tunggu sebentar, bot sedang memproses data"
+	msg, _ := t.bot.Edit(msgRoot, initial)
+
+	go func() {
+		dots := []string{"⏳", "⏳⏳", "⏳⏳⏳"}
+		i := 0
+		for {
+			select {
+			case <-stop:
+				// Stop signal diterima, keluar dari loop
+				return
+			default:
+				t.bot.Edit(msg, fmt.Sprintf("%s%s", initial, dots[i%len(dots)]))
+				i++
+				time.Sleep(200 * time.Millisecond)
+			}
+		}
+	}()
+
+	return msg
 }

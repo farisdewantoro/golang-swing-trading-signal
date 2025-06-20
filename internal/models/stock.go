@@ -15,12 +15,12 @@ type StockPositionEntity struct {
 	StopLossPrice         float64    `gorm:"not null" json:"stop_loss_price"`
 	BuyDate               time.Time  `gorm:"not null" json:"buy_date"`
 	MaxHoldingPeriodDays  int        `gorm:"not null" json:"max_holding_period_days"`
-	IsActive              bool       `gorm:"not null" json:"is_active"`
+	IsActive              *bool      `gorm:"not null" json:"is_active"`
 	ExitPrice             *float64   `json:"exit_price"`
 	ExitDate              *time.Time `json:"exit_date"`
-	PriceAlert            bool       `gorm:"not null" json:"price_alert"`
+	PriceAlert            *bool      `gorm:"not null" json:"price_alert"`
 	LastPriceAlertAt      *time.Time `json:"last_price_alert_at"`
-	MonitorPosition       bool       `gorm:"not null" json:"monitor_position"`
+	MonitorPosition       *bool      `gorm:"not null" json:"monitor_position"`
 	LastMonitorPositionAt *time.Time `json:"last_monitor_position_at"`
 	User                  UserEntity `gorm:"foreignKey:UserID;references:ID"`
 	CreatedAt             time.Time  `gorm:"autoCreateTime" json:"created_at"`
@@ -31,7 +31,19 @@ func (StockPositionEntity) TableName() string {
 	return "stock_positions"
 }
 
+type StockPositionUpdateRequest struct {
+	BuyPrice             *float64   `json:"buy_price"`
+	BuyDate              *time.Time `json:"buy_date"`
+	MaxHoldingPeriodDays *int       `json:"max_holding_period_days"`
+	PriceAlert           *bool      `json:"price_alert"`
+	MonitorPosition      *bool      `json:"monitor_position"`
+	ExitPrice            *float64   `json:"exit_price"`
+	ExitDate             *time.Time `json:"exit_date"`
+	IsActive             *bool      `json:"is_active"`
+}
+
 type StockPositionQueryParam struct {
+	IDs         []uint   `json:"ids"`
 	TelegramIDs []int64  `json:"telegram_ids"`
 	StockCodes  []string `json:"stock_codes"`
 	IsActive    bool     `json:"is_active"`
