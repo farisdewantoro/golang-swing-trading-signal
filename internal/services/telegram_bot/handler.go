@@ -992,53 +992,26 @@ func (t *TelegramBotService) handleSetPositionFinish(ctx context.Context, c tele
 
 // handleBuyList handles /buylist command - analyzes all stocks and shows buy list
 func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Context) error {
-	// Send initial message with estimation
-	startTime := time.Now()
-	estimatedTime := time.Duration(len(t.tradingConfig.StockList)) * 5 * time.Second // Estimate 5 seconds per stock
-	err := c.Send(fmt.Sprintf("🔍 Analyzing all stocks from configuration to generate buy list...\n⏱️ Estimated time: %s\nPlease wait.", formatDuration(estimatedTime)))
-	if err != nil {
-		t.logger.WithError(err).Error("Failed to send initial message")
-		return err
-	}
 
-	// Run analysis in background goroutine
+	startTime := utils.TimeNowWIB()
+	stopChan := make(chan struct{})
+
+	// Mulai loading animasi
+	msg := t.showLoadingFlowAnalysis(c, stopChan)
+
 	go func() {
-		// Check if context is cancelled before starting analysis
-		select {
-		case <-t.ctx.Done():
-			t.logger.Info("Telegram bot shutting down, skipping buy list analysis")
-			return
-		default:
-		}
+		newCtx, cancel := context.WithTimeout(ctx, t.config.TimeoutBuyListDuration)
+		defer cancel()
 
-		// Perform analysis on all stocks
-		summary, err := t.analyzer.AnalyzeAllStocks(ctx, t.tradingConfig.StockList)
+		summary, err := t.analyzer.AnalyzeAllStocks(newCtx, t.tradingConfig.StockList)
 		if err != nil {
-			t.logger.WithError(err).Error("Failed to analyze all stocks")
-
-			// Check if context is cancelled before sending error message
-			select {
-			case <-t.ctx.Done():
-				t.logger.Info("Telegram bot shutting down, skipping error message")
-				return
-			default:
-			}
-
-			// Send error message
-			err := c.Send(fmt.Sprintf("❌ Failed to analyze stocks: %s", err.Error()))
-			if err != nil {
-				t.logger.WithError(err).Error("Failed to send error message")
-			}
+			close(stopChan)
+			t.logger.WithError(err).Error("Failed to analyze stock")
+			t.bot.Edit(msg, commonMessageInternalError, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
 			return
 		}
 
-		// Check if context is cancelled before sending analysis
-		select {
-		case <-t.ctx.Done():
-			t.logger.Info("Telegram bot shutting down, skipping buy list message")
-			return
-		default:
-		}
+		close(stopChan)
 
 		// Calculate actual time taken
 		actualTime := time.Since(startTime)
@@ -1047,19 +1020,11 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 		summaryMessage := t.FormatBuyListSummaryMessage(summary, actualTime)
 
 		// Send the buy list summary results
-		err = c.Send(summaryMessage, &telebot.SendOptions{
+		_, err = t.bot.Edit(msg, summaryMessage, &telebot.SendOptions{
 			ParseMode: telebot.ModeHTML,
 		})
 		if err != nil {
 			t.logger.WithError(err).Error("Failed to send buy list summary message")
-		}
-
-		// Check if context is cancelled before sending detailed list
-		select {
-		case <-t.ctx.Done():
-			t.logger.Info("Telegram bot shutting down, skipping detailed stock list")
-			return
-		default:
 		}
 
 		// Send detailed stock list as second message
@@ -1072,6 +1037,7 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 				t.logger.WithError(err).Error("Failed to send detailed stock list message")
 			}
 		}
+
 	}()
 
 	return nil
