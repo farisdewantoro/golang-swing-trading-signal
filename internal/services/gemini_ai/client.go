@@ -12,6 +12,7 @@ import (
 
 	"golang-swing-trading-signal/internal/config"
 	"golang-swing-trading-signal/internal/models"
+	"golang-swing-trading-signal/internal/utils"
 
 	"golang-swing-trading-signal/pkg/ratelimit"
 
@@ -120,6 +121,13 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 		return "", fmt.Errorf("failed to count tokens: %w", err)
 	}
 
+	if reserve := c.requestLimiter.Reserve(); reserve.Delay() > 0 {
+		c.logger.Warn("request limit exceeded", logrus.Fields{
+			"remaining_tokens":   c.tokenLimiter.GetRemaining(),
+			"token_available_at": utils.TimeNowWIB().Add(reserve.Delay()),
+		})
+	}
+
 	if err := c.tokenLimiter.Wait(ctx, int(tokenCount.TotalTokens)); err != nil {
 		return "", fmt.Errorf("failed to wait for token limit: %w", err)
 	}
@@ -140,15 +148,15 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 
 	// Build request body
 	requestBody := models.GeminiAIRequest{
+		GenerationConfig: &models.GeminiGenerationConfig{
+			Temperature: c.config.RequestTemperature,
+		},
 		Contents: []models.GeminiContent{
 			{
 				Parts: []models.GeminiPart{
 					{Text: prompt},
 				},
 			},
-		},
-		GenerationConfig: &models.GeminiGenerationConfig{
-			Temperature: c.config.RequestTemperature,
 		},
 	}
 
@@ -158,7 +166,7 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 	}
 
 	c.logger.Debug("Sending request to Gemini AI", logrus.Fields{
-		"request_body": jsonBody,
+		"request_body": requestBody,
 		"request_url":  requestURL,
 	})
 

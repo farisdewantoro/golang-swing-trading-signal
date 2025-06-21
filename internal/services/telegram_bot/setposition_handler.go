@@ -172,7 +172,7 @@ func (t *TelegramBotService) handleSetPositionFinish(ctx context.Context, c tele
 
 	defer t.ResetUserState(userID)
 
-	if err := t.analyzer.SetStockPosition(ctx, data); err != nil {
+	if err := t.stockService.SetStockPosition(ctx, data); err != nil {
 		return c.Send("❌ Terjadi kesalahan internal, silakan mulai lagi dengan /setposition.")
 	}
 

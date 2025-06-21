@@ -16,7 +16,7 @@ func (t *TelegramBotService) handleMyPosition(ctx context.Context, c telebot.Con
 func (t *TelegramBotService) handleMyPositionWithEditMessage(ctx context.Context, c telebot.Context, isEditMessage bool) error {
 	userID := c.Sender().ID
 
-	positions, err := t.analyzer.GetStockPositionsTelegramUser(ctx, userID)
+	positions, err := t.stockService.GetStockPositionsTelegramUser(ctx, userID)
 	if err != nil {
 		return c.Send(commonMessageInternalError)
 	}
@@ -60,7 +60,7 @@ func (t *TelegramBotService) handleBtnToDetailStockPosition(ctx context.Context,
 		return c.Send(commonMessageInternalError)
 	}
 
-	positions, err := t.analyzer.GetStockPosition(ctx, models.StockPositionQueryParam{
+	positions, err := t.stockService.GetStockPosition(ctx, models.StockPositionQueryParam{
 		TelegramIDs: []int64{userID},
 		IsActive:    true,
 		IDs:         []uint{uint(id)},

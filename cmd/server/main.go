@@ -11,19 +11,24 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/genai"
+	"gopkg.in/telebot.v3"
 
 	"golang-swing-trading-signal/internal/api/handlers"
 	"golang-swing-trading-signal/internal/api/routes"
 	"golang-swing-trading-signal/internal/config"
 	"golang-swing-trading-signal/internal/repository"
 	"golang-swing-trading-signal/internal/services/gemini_ai"
+	"golang-swing-trading-signal/internal/services/stocks"
 	"golang-swing-trading-signal/internal/services/telegram_bot"
 	"golang-swing-trading-signal/internal/services/trading_analysis"
 	"golang-swing-trading-signal/internal/services/yahoo_finance"
 	"golang-swing-trading-signal/pkg/postgres"
+	"golang-swing-trading-signal/pkg/ratelimit"
 )
 
 func main() {
+	ctxCancel, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// Initialize logger
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
@@ -78,6 +83,7 @@ func main() {
 	// Initialize repositories
 	stockNewsSummaryRepo := repository.NewStockNewsSummaryRepository(db.DB)
 	stockPositionRepo := repository.NewStockPositionRepository(db.DB)
+	stockRepo := repository.NewStocksRepository(db.DB)
 	userRepo := repository.NewUserRepository(db.DB)
 	unitOfWork := repository.NewUnitOfWork(db.DB)
 	genClient, err := genai.NewClient(context.Background(), &genai.ClientConfig{
@@ -93,11 +99,29 @@ func main() {
 	analyzer := trading_analysis.NewAnalyzer(yahooClient, geminiClient, logger, stockNewsSummaryRepo, stockPositionRepo, userRepo, unitOfWork)
 
 	// Initialize Telegram bot service
-	var telegramService *telegram_bot.TelegramBotService
-	telegramService, err = telegram_bot.NewTelegramBotService(&cfg.Telegram, &cfg.Trading, logger, analyzer, router)
-	if err != nil {
-		logger.WithError(err).Fatal("Failed to initialize Telegram bot service, continuing without Telegram integration")
+
+	if cfg.Telegram.BotToken == "" {
+		logger.Fatal("telegram bot token is required")
 	}
+
+	// Always start with long polling to avoid webhook conflicts
+	pref := telebot.Settings{
+		Token:  cfg.Telegram.BotToken,
+		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
+		OnError: func(err error, c telebot.Context) {
+			logger.WithError(err).Error("Telegram bot error")
+		},
+	}
+
+	bot, err := telebot.NewBot(pref)
+	if err != nil {
+		logger.WithError(err).Fatal("failed to create telegram bot")
+	}
+	telegramRateLimiter := ratelimit.NewTelegramRateLimiter(&cfg.Telegram, logger, bot)
+	telegramRateLimiter.StartCleanupExpired(ctxCancel)
+
+	stockService := stocks.NewStockService(cfg, stockRepo, stockNewsSummaryRepo, stockPositionRepo, userRepo, logger, unitOfWork)
+	telegramService := telegram_bot.NewTelegramBotService(&cfg.Telegram, ctxCancel, &cfg.Trading, logger, analyzer, stockService, bot, telegramRateLimiter, router)
 
 	// Initialize handlers
 	tradingHandler := handlers.NewTradingHandler(analyzer, telegramService, logger, cfg)
@@ -134,6 +158,10 @@ func main() {
 	<-quit
 	logger.Info("Shutting down server...")
 
+	// Stop server
+	cancel()
+
+	telegramRateLimiter.StopCleanupExpired()
 	// Stop Telegram bot if running with timeout
 	if telegramService != nil {
 		logger.Info("Stopping Telegram bot...")
@@ -152,12 +180,8 @@ func main() {
 		}
 	}
 
-	// Give outstanding requests a deadline for completion
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	logger.Info("Shutting down HTTP server...")
-	if err := server.Shutdown(ctx); err != nil {
+	if err := server.Shutdown(ctxCancel); err != nil {
 		logger.WithError(err).Error("Server forced to shutdown")
 	} else {
 		logger.Info("HTTP server shutdown completed successfully")

@@ -47,6 +47,7 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle(&btnExitStockPosition, t.WithContext(t.handleBtnExitStockPosition))
 	t.bot.Handle(&btnCancelGeneral, t.WithContext(t.handleBtnCancel))
 	t.bot.Handle(&btnSaveExitPosition, t.WithContext(t.handleBtnSaveExitPosition))
+	t.bot.Handle(&btnCancelBuyListAnalysis, t.WithContext(t.handleBtnCancelBuyListAnalysis))
 
 	// Handle incoming text messages for conversations
 	t.bot.Handle(telebot.OnText, t.WithContext(t.handleConversation))

@@ -164,7 +164,7 @@ func (c *Client) GetOHLCData(symbol string, period1, period2 int64, interval str
 	}
 
 	dataInfo := models.DataInfo{
-		Interval:    "1d",
+		Interval:    interval,
 		Range:       fmt.Sprintf("%d days", int(endDate.Sub(startDate).Hours()/24)),
 		StartDate:   startDate,
 		EndDate:     endDate,

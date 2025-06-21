@@ -83,7 +83,7 @@ func (t *TelegramBotService) handleBtnSaveExitPosition(ctx context.Context, c te
 		newCtx, cancel := context.WithTimeout(t.ctx, t.config.TimeoutDuration)
 		defer cancel()
 
-		if err := t.analyzer.UpdateStockPositionTelegramUser(newCtx, userID, data.StockPositionID, &models.StockPositionUpdateRequest{
+		if err := t.stockService.UpdateStockPositionTelegramUser(newCtx, userID, data.StockPositionID, &models.StockPositionUpdateRequest{
 			ExitPrice: utils.ToPointer(data.ExitPrice),
 			ExitDate:  utils.ToPointer(data.ExitDate),
 			IsActive:  utils.ToPointer(false),

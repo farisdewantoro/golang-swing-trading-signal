@@ -20,7 +20,7 @@ func (t *TelegramBotService) handleBtnManageStockPosition(ctx context.Context, c
 		return c.Edit(fmt.Sprintf("❌ Gagal mengambil posisi untuk %s: %s", stockPositionID, err.Error()))
 	}
 
-	stockPosition, err := t.analyzer.GetStockPosition(ctx, models.StockPositionQueryParam{
+	stockPosition, err := t.stockService.GetStockPosition(ctx, models.StockPositionQueryParam{
 		TelegramIDs: []int64{c.Sender().ID},
 		IDs:         []uint{uint(stockPositionIDInt)},
 	})
@@ -137,7 +137,7 @@ func (t *TelegramBotService) handleBtnUpdateAlertPrice(ctx context.Context, c te
 		return c.Edit(fmt.Sprintf("❌ Gagal parse data untuk %s: %s", stockPositionID, err.Error()))
 	}
 
-	if err = t.analyzer.UpdateStockPositionTelegramUser(ctx, c.Sender().ID, uint(stockPositionIDInt), &models.StockPositionUpdateRequest{
+	if err = t.stockService.UpdateStockPositionTelegramUser(ctx, c.Sender().ID, uint(stockPositionIDInt), &models.StockPositionUpdateRequest{
 		PriceAlert: &isAlertOnBool,
 	}); err != nil {
 		return c.Edit(fmt.Sprintf("❌ Gagal update status alert untuk %s: %s", stockPositionID, err.Error()))
@@ -172,7 +172,7 @@ func (t *TelegramBotService) handleBtnUpdateAlertMonitor(ctx context.Context, c 
 		return c.Edit(fmt.Sprintf("❌ Gagal parse data untuk %s: %s", stockPositionID, err.Error()))
 	}
 
-	if err = t.analyzer.UpdateStockPositionTelegramUser(ctx, c.Sender().ID, uint(stockPositionIDInt), &models.StockPositionUpdateRequest{
+	if err = t.stockService.UpdateStockPositionTelegramUser(ctx, c.Sender().ID, uint(stockPositionIDInt), &models.StockPositionUpdateRequest{
 		MonitorPosition: &isMonitorOnBool,
 	}); err != nil {
 		return c.Edit(fmt.Sprintf("❌ Gagal update status monitoring untuk %s: %s", stockPositionID, err.Error()))
@@ -206,7 +206,7 @@ func (t *TelegramBotService) handleBtnBackDetailStockPositionWithParam(ctx conte
 	if stockPosisitionID != nil {
 		param.IDs = []uint{*stockPosisitionID}
 	}
-	positions, err := t.analyzer.GetStockPosition(ctx, param)
+	positions, err := t.stockService.GetStockPosition(ctx, param)
 	if err != nil {
 		return c.Send(commonMessageInternalError)
 	}

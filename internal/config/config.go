@@ -48,11 +48,16 @@ type TradingConfig struct {
 }
 
 type TelegramConfig struct {
-	BotToken               string
-	ChatID                 string
-	WebhookURL             string
-	TimeoutDuration        time.Duration
-	TimeoutBuyListDuration time.Duration
+	BotToken                  string
+	ChatID                    string
+	WebhookURL                string
+	TimeoutDuration           time.Duration
+	TimeoutBuyListDuration    time.Duration
+	MaxGlobalRequestPerSecond int
+	MaxUserRequestPerSecond   int
+	MaxEditMessagePerSecond   int
+	RatelimitExpireDuration   time.Duration
+	RateLimitCleanupDuration  time.Duration
 }
 
 func LoadConfig() (*Config, error) {
@@ -101,11 +106,16 @@ func LoadConfig() (*Config, error) {
 			Level: viper.GetString("LOG_LEVEL"),
 		},
 		Telegram: TelegramConfig{
-			BotToken:               viper.GetString("TELEGRAM_BOT_TOKEN"),
-			ChatID:                 viper.GetString("TELEGRAM_CHAT_ID"),
-			WebhookURL:             viper.GetString("TELEGRAM_WEBHOOK_URL"),
-			TimeoutDuration:        viper.GetDuration("TELEGRAM_TIMEOUT_DURATION"),
-			TimeoutBuyListDuration: viper.GetDuration("TELEGRAM_TIMEOUT_BUY_LIST_DURATION"),
+			BotToken:                  viper.GetString("TELEGRAM_BOT_TOKEN"),
+			ChatID:                    viper.GetString("TELEGRAM_CHAT_ID"),
+			WebhookURL:                viper.GetString("TELEGRAM_WEBHOOK_URL"),
+			TimeoutDuration:           viper.GetDuration("TELEGRAM_TIMEOUT_DURATION"),
+			TimeoutBuyListDuration:    viper.GetDuration("TELEGRAM_TIMEOUT_BUY_LIST_DURATION"),
+			MaxGlobalRequestPerSecond: viper.GetInt("TELEGRAM_MAX_GLOBAL_REQUEST_PER_SECOND"),
+			MaxUserRequestPerSecond:   viper.GetInt("TELEGRAM_MAX_USER_REQUEST_PER_SECOND"),
+			MaxEditMessagePerSecond:   viper.GetInt("TELEGRAM_MAX_EDIT_MESSAGE_PER_SECOND"),
+			RatelimitExpireDuration:   viper.GetDuration("TELEGRAM_RATELIMIT_EXPIRE_DURATION"),
+			RateLimitCleanupDuration:  viper.GetDuration("TELEGRAM_RATE_LIMIT_CLEANUP_DURATION"),
 		},
 		Database: postgres.Config{
 			Host:            viper.GetString("DATABASE_HOST"),

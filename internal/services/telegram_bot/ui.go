@@ -28,6 +28,7 @@ var (
 	btnExitStockPosition                   telebot.Btn = telebot.Btn{Unique: "btn_exit_stock_position"}
 	btnSaveExitPosition                    telebot.Btn = telebot.Btn{Text: "💾 Simpan", Unique: "btn_save_exit_position"}
 	btnCancelGeneral                       telebot.Btn = telebot.Btn{Text: "❌ Batal", Unique: "btn_cancel_general"}
+	btnCancelBuyListAnalysis               telebot.Btn = telebot.Btn{Text: "⛔ Hentikan Analisis", Unique: "btn_cancel_buy_list_analysis"}
 )
 
 var (
@@ -38,4 +39,5 @@ var (
 
 var (
 	commonMessageInternalError string = "❌ Terjadi kesalahan internal, silakan coba lagi."
+	messageLoadingAnalysis     string = "🔍 Menganalisis: $%s"
 )

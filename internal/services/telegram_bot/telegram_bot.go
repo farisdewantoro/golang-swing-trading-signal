@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +16,9 @@ import (
 
 	"golang-swing-trading-signal/internal/config"
 	"golang-swing-trading-signal/internal/models"
+	"golang-swing-trading-signal/internal/services/stocks"
 	"golang-swing-trading-signal/internal/services/trading_analysis"
+	"golang-swing-trading-signal/pkg/ratelimit"
 )
 
 // Conversation states
@@ -52,59 +55,55 @@ const (
 
 type TelegramBotService struct {
 	bot                      *telebot.Bot
+	telegramRateLimiter      *ratelimit.TelegramRateLimiter
 	config                   *config.TelegramConfig
 	tradingConfig            *config.TradingConfig
 	logger                   *logrus.Logger
 	analyzer                 *trading_analysis.Analyzer
+	stockService             stocks.StockService
 	router                   *gin.Engine
-	ctx                      context.Context
-	cancel                   context.CancelFunc
 	userStates               map[int64]int                                 // UserID -> State
 	userPositionData         map[int64]*models.RequestSetPositionData      // UserID -> Data for /setposition
 	userAnalysisPositionData map[int64]*models.RequestAnalysisPositionData // UserID -> Data for /analyze
 	userExitPositionData     map[int64]*models.RequestExitPositionData     // UserID -> Data for /exitposition
+	mu                       sync.Mutex                                    // Mutex for thread-safe operations
+	userCancelFuncs          map[int64]context.CancelFunc                  // key: telegram user ID atau chat ID
+	ctx                      context.Context
 }
 
-func NewTelegramBotService(cfg *config.TelegramConfig, tradingConfig *config.TradingConfig, logger *logrus.Logger, analyzer *trading_analysis.Analyzer, router *gin.Engine) (*TelegramBotService, error) {
-	if cfg.BotToken == "" {
-		return nil, fmt.Errorf("telegram bot token is required")
-	}
-
-	// Always start with long polling to avoid webhook conflicts
-	pref := telebot.Settings{
-		Token:  cfg.BotToken,
-		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
-		OnError: func(err error, c telebot.Context) {
-			logger.WithError(err).Error("Telegram bot error")
-		},
-	}
-
-	bot, err := telebot.NewBot(pref)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create telegram bot: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
+func NewTelegramBotService(
+	cfg *config.TelegramConfig,
+	ctx context.Context,
+	tradingConfig *config.TradingConfig,
+	logger *logrus.Logger,
+	analyzer *trading_analysis.Analyzer,
+	stockService stocks.StockService,
+	bot *telebot.Bot,
+	telegramRateLimiter *ratelimit.TelegramRateLimiter,
+	router *gin.Engine) *TelegramBotService {
 
 	service := &TelegramBotService{
 		bot:                      bot,
+		telegramRateLimiter:      telegramRateLimiter,
 		config:                   cfg,
 		tradingConfig:            tradingConfig,
 		logger:                   logger,
 		analyzer:                 analyzer,
+		stockService:             stockService,
 		router:                   router,
-		ctx:                      ctx,
-		cancel:                   cancel,
 		userStates:               make(map[int64]int),
 		userPositionData:         make(map[int64]*models.RequestSetPositionData),
 		userAnalysisPositionData: make(map[int64]*models.RequestAnalysisPositionData),
 		userExitPositionData:     make(map[int64]*models.RequestExitPositionData),
+		mu:                       sync.Mutex{},
+		userCancelFuncs:          make(map[int64]context.CancelFunc),
+		ctx:                      ctx,
 	}
 
 	// Register handlers
 	service.registerHandlers()
 
-	return service, nil
+	return service
 }
 
 func (t *TelegramBotService) Start() {
@@ -152,11 +151,8 @@ func (t *TelegramBotService) Start() {
 func (t *TelegramBotService) Stop() {
 	t.logger.Info("Stopping Telegram bot...")
 
-	// Cancel the context to signal shutdown
-	t.cancel()
-
 	// Create a context with timeout for graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.ctx, 10*time.Second)
 	defer cancel()
 
 	// Stop the bot with timeout
@@ -185,10 +181,17 @@ func (t *TelegramBotService) CleanUpUsersStates() {
 }
 
 func (t *TelegramBotService) ResetUserState(userID int64) {
+	t.mu.Lock()
 	delete(t.userStates, userID)
 	delete(t.userPositionData, userID)
 	delete(t.userAnalysisPositionData, userID)
 	delete(t.userExitPositionData, userID)
+
+	if cancel, exists := t.userCancelFuncs[userID]; exists {
+		cancel()
+		delete(t.userCancelFuncs, userID)
+	}
+	t.mu.Unlock()
 }
 
 func (t *TelegramBotService) SendPositionMonitoringNotification(position *models.PositionMonitoringResponse) error {

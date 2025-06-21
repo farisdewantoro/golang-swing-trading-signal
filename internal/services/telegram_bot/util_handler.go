@@ -25,25 +25,17 @@ func (t *TelegramBotService) handleBtnDeleteMessage(ctx context.Context, c teleb
 func (t *TelegramBotService) handleCancel(c telebot.Context) error {
 	userID := c.Sender().ID
 
+	t.ResetUserState(userID)
+
 	// Check if user is in any conversation state
 	if state, ok := t.userStates[userID]; ok && state != StateIdle {
-		// Reset user state
-		t.ResetUserState(userID)
 		return c.Send("✅ Percakapan dibatalkan.")
 	}
 
-	return c.Send("🤷‍♀️ Tidak ada percakapan aktif yang bisa dibatalkan.")
+	return nil
+
 }
 
 func (t *TelegramBotService) handleBtnCancel(ctx context.Context, c telebot.Context) error {
-	userID := c.Sender().ID
-
-	// Check if user is in any conversation state
-	if state, ok := t.userStates[userID]; ok && state != StateIdle {
-		// Reset user state
-		t.ResetUserState(userID)
-		return c.Edit("✅ Percakapan dibatalkan.")
-	}
-
-	return c.Send("🤷‍♀️ Tidak ada percakapan aktif yang bisa dibatalkan.")
+	return t.handleCancel(c)
 }

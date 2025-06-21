@@ -1,11 +1,13 @@
 package telegram_bot
 
 import (
+	"context"
 	"fmt"
 	"golang-swing-trading-signal/internal/models"
 	"golang-swing-trading-signal/internal/utils"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/telebot.v3"
@@ -532,18 +534,16 @@ func (t *TelegramBotService) showLoadingFlowAnalysis(c telebot.Context, stop <-c
 		dots := []string{"⏳", "⏳⏳", "⏳⏳⏳"}
 		i := 0
 		for {
-			select {
-			case <-stop:
+			if utils.ShouldStopChan(stop, t.logger) {
 				return
-			default:
-				_, err := t.bot.Edit(msg, fmt.Sprintf("%s%s", initial, dots[i%len(dots)]))
-				if err != nil {
-					t.logger.WithError(err).Error("Failed to update loading animation")
-					return
-				}
-				i++
-				time.Sleep(200 * time.Millisecond)
 			}
+			_, err := t.bot.Edit(msg, fmt.Sprintf("%s%s", initial, dots[i%len(dots)]))
+			if err != nil {
+				t.logger.WithError(err).Error("Failed to update loading animation")
+				return
+			}
+			i++
+			time.Sleep(200 * time.Millisecond)
 		}
 	}()
 
@@ -560,17 +560,183 @@ func (t *TelegramBotService) showLoadingGeneral(c telebot.Context, stop <-chan s
 		dots := []string{"⏳", "⏳⏳", "⏳⏳⏳"}
 		i := 0
 		for {
-			select {
-			case <-stop:
-				// Stop signal diterima, keluar dari loop
+			if utils.ShouldStopChan(stop, t.logger) {
 				return
-			default:
-				t.bot.Edit(msg, fmt.Sprintf("%s%s", initial, dots[i%len(dots)]))
-				i++
-				time.Sleep(200 * time.Millisecond)
 			}
+			_, err := t.bot.Edit(msg, fmt.Sprintf("%s%s", initial, dots[i%len(dots)]))
+			if err != nil {
+				t.logger.WithError(err).Error("Failed to update loading animation")
+				return
+			}
+			i++
+			time.Sleep(200 * time.Millisecond)
 		}
 	}()
 
 	return msg
+}
+
+func (t *TelegramBotService) showLoadingBuyList(c telebot.Context, stockCode string, msgRoot *telebot.Message, stop <-chan struct{}, result *strings.Builder) *telebot.Message {
+	steps := []string{
+		fmt.Sprintf("📊 *Sedang menganalisis saham %s...*\n", stockCode),
+		"🔍 Langkah 1: Mengecek pergerakan harga (OHLC)...",
+		"🗞️ Langkah 2: Memindai berita dan sentimen pasar...",
+		"🧠 Langkah 3: AI sedang melakukan analisa teknikal & fundamental...",
+		"\nMohon tunggu sebentar, hasil segera keluar...",
+	}
+
+	stepsCount := 0
+
+	sb := &strings.Builder{}
+	sb.WriteString(result.String())
+	sb.WriteString("\n")
+	sb.WriteString(steps[stepsCount])
+
+	utils.SafeGo(func() {
+		dots := []string{"⏳", "⏳⏳", "⏳⏳⏳"}
+		i := 0
+		stepsCount++
+		for {
+			if utils.ShouldStopChan(stop, t.logger) {
+				return
+			}
+
+			if stepsCount < len(steps) {
+				sb.WriteString("\n" + steps[stepsCount])
+				stepsCount++
+				_, err := t.bot.Edit(msgRoot, sb.String(), telebot.ModeMarkdown)
+				if err != nil {
+					t.logger.WithError(err).Error("Failed to update loading animation")
+					return
+				}
+
+				if stepsCount < len(steps) {
+					time.Sleep(200 * time.Millisecond)
+					sb.WriteString("✅")
+					_, err = t.bot.Edit(msgRoot, sb.String(), telebot.ModeMarkdown)
+					if err != nil {
+						t.logger.WithError(err).Error("Failed to update loading animation")
+						return
+					}
+				}
+
+				continue
+			}
+
+			_, err := t.bot.Edit(msgRoot, fmt.Sprintf("%s%s", sb.String(), dots[i%len(dots)]), telebot.ModeMarkdown)
+			if err != nil {
+				t.logger.WithError(err).Error("Failed to update loading animation")
+				return
+			}
+			i++
+			time.Sleep(400 * time.Millisecond)
+		}
+	})
+
+	return msgRoot
+}
+
+type Progress struct {
+	Index     int
+	StockCode string
+	Content   string
+	Header    string
+}
+
+func (t *TelegramBotService) showProgressBarWithChannel(
+	ctx context.Context,
+	c telebot.Context,
+	msgRoot *telebot.Message,
+	progressCh <-chan Progress,
+	totalSteps int,
+	wg *sync.WaitGroup,
+) {
+	utils.SafeGo(func() {
+		const barLength = 15 // total panjang bar, bisa diubah sesuai estetika
+
+		current := Progress{Index: 0}
+
+		defer func() {
+			result := fmt.Sprintf("%s\n%s", current.Header, current.Content)
+			_, errInner := t.telegramRateLimiter.EditWithoutLimit(ctx, c, msgRoot, result, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
+			if errInner != nil {
+				t.logger.WithError(errInner).Error("Gagal edit pesan")
+			}
+			wg.Done()
+		}()
+
+		for {
+			select {
+			case <-ctx.Done():
+				t.logger.WithError(ctx.Err()).Error("Done signal received")
+
+				return
+
+			case newProgress, ok := <-progressCh:
+				if !ok {
+					t.logger.Warn("showProgressBarWithChannel - Progress channel closed")
+					return
+				}
+
+				current = newProgress
+
+				// Hitung persen dan jumlah "blok" progress
+				percent := int(float64(current.Index) / float64(totalSteps) * 100)
+				progressBlocks := int(float64(barLength) * float64(current.Index) / float64(totalSteps))
+				if progressBlocks > barLength {
+					progressBlocks = barLength
+				}
+
+				// Buat bar: ▓ untuk progress, ░ untuk sisanya
+				currentAnalysis := fmt.Sprintf(messageLoadingAnalysis, current.StockCode)
+				filled := strings.Repeat("▓", progressBlocks)
+				empty := strings.Repeat("░", barLength-progressBlocks)
+				progressBar := fmt.Sprintf("⏳ Progress: [%s%s] %d%%", filled, empty, percent)
+
+				menu := &telebot.ReplyMarkup{}
+				btnCancel := menu.Data(btnCancelBuyListAnalysis.Text, btnCancelBuyListAnalysis.Unique)
+				menu.Inline(menu.Row(btnCancel))
+
+				body := &strings.Builder{}
+				body.WriteString(current.Header)
+				body.WriteString("\n")
+
+				if current.Content != "" {
+					body.WriteString(current.Content)
+					body.WriteString("\n\n")
+				}
+
+				body.WriteString(currentAnalysis)
+				body.WriteString("\n")
+				body.WriteString(progressBar)
+
+				time.Sleep(100 * time.Millisecond)
+
+				if msgRoot == nil {
+					msgNew, err := t.telegramRateLimiter.Send(ctx, c, body.String(), menu, telebot.ModeMarkdown)
+					if err != nil {
+						t.logger.WithError(err).Error("Gagal create progress bar")
+					}
+					msgRoot = msgNew
+				} else {
+					_, err := t.telegramRateLimiter.Edit(ctx, c, msgRoot, body.String(), menu, telebot.ModeMarkdown)
+					if err != nil {
+						t.logger.WithError(err).Error("Gagal update progress bar")
+					}
+				}
+
+			}
+		}
+	})
+}
+
+func (t *TelegramBotService) formatMessageBuyList(index int, analysis *models.IndividualAnalysisResponse) *strings.Builder {
+
+	sb := &strings.Builder{}
+	sb.WriteString(fmt.Sprintf("\n• `$%s`\n", analysis.Symbol))
+	sb.WriteString(fmt.Sprintf("   🎯 TP: %d  🛡 SL: %d\n", int(analysis.Recommendation.TargetPrice), int(analysis.Recommendation.CutLoss)))
+	sb.WriteString(fmt.Sprintf("   🔁 RR: %.1f   💰 Profit: +%.1f%%", analysis.Recommendation.RiskRewardAnalysis.RiskRewardRatio, analysis.Recommendation.RiskRewardAnalysis.PotentialProfitPercentage))
+
+	return sb
+
 }

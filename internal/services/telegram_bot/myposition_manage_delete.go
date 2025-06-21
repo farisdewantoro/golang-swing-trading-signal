@@ -21,7 +21,7 @@ func (t *TelegramBotService) handleBtnDeleteStockPosition(ctx context.Context, c
 		return c.Edit(fmt.Sprintf("❌ Gagal mengambil posisi untuk %s: %s", stockPositionID, err.Error()))
 	}
 
-	if err = t.analyzer.DeleteStockPositionTelegramUser(ctx, c.Sender().ID, uint(stockPositionIDInt)); err != nil {
+	if err = t.stockService.DeleteStockPositionTelegramUser(ctx, c.Sender().ID, uint(stockPositionIDInt)); err != nil {
 		return c.Edit(fmt.Sprintf("❌ Gagal menghapus posisi untuk %s: %s", stockPositionID, err.Error()))
 	}
 

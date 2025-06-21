@@ -4,7 +4,20 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"gorm.io/gorm"
 )
+
+type StockEntity struct {
+	Code      string         `gorm:"primaryKey;" json:"code"`
+	Name      string         `gorm:"not null" json:"name"`
+	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"autoDeleteTime" json:"deleted_at"`
+}
+
+func (StockEntity) TableName() string {
+	return "stocks"
+}
 
 type StockPositionEntity struct {
 	ID                    uint       `gorm:"primaryKey" json:"id"`
