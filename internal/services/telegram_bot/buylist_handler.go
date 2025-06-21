@@ -59,8 +59,8 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 
 		buyListResultMsg := &strings.Builder{}
 
-		msgHeaderInProgress := &strings.Builder{}
-		msgHeaderInProgress.WriteString(fmt.Sprintf(`
+		msgHeader := &strings.Builder{}
+		msgHeader.WriteString(fmt.Sprintf(`
 📊 Analisis Saham Sedang Berlangsung...
 📌 Interval: %s
 📅 Time Range: %s
@@ -69,7 +69,7 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 		progressCh := make(chan Progress, len(stocks)+1)
 		t.showProgressBarWithChannel(newCtx, c, msgRoot, progressCh, len(stocks), &wg)
 
-		progressCh <- Progress{Index: 0, StockCode: stocks[0].Code, Header: msgHeaderInProgress.String()}
+		progressCh <- Progress{Index: 0, StockCode: stocks[0].Code, Header: msgHeader.String()}
 
 		buyCount := 0
 		for idx, stock := range stocks {
@@ -94,7 +94,7 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 			if err != nil {
 				t.logger.WithError(err).WithField("symbol", stock.Code).Error("Failed to analyze stock")
 				buyListResultMsg.WriteString(fmt.Sprintf("*%d. %s* - ❌ Gagal analisa\n", idx+1, stock.Code))
-				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeaderInProgress.String()}
+				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
 
@@ -104,23 +104,23 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 					"index":  idx + 1,
 					"total":  len(stocks),
 				})
-				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeaderInProgress.String()}
+				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
 			buyCount++
 			if buyCount == 1 {
-				msgHeaderInProgress.WriteString("\n📈 Ditemukan sinyal BUY:")
+				msgHeader.WriteString("\n📈 Ditemukan sinyal BUY:")
 			}
 			newBuyListMsg := t.formatMessageBuyList(buyCount, analysis)
 
 			buyListResultMsg.WriteString(newBuyListMsg.String())
-			progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeaderInProgress.String()}
+			progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 
 		}
 
 		if buyCount > 0 {
-			msgHeaderInProgress.Reset()
-			msgHeaderInProgress.WriteString(fmt.Sprintf("📈 Berikut saham %d yang direkomendasikan untuk BUY:", buyCount))
+			msgHeader.Reset()
+			msgHeader.WriteString(fmt.Sprintf("📈 Berikut saham %d yang direkomendasikan untuk BUY:", buyCount))
 			msgFooter := fmt.Sprintf(`
 
 📌 Interval: %s  
@@ -130,7 +130,20 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 
 `, strings.ToUpper(interval), strings.ToUpper(rng))
 			buyListResultMsg.WriteString(msgFooter)
-			progressCh <- Progress{Index: len(stocks), StockCode: stocks[len(stocks)-1].Code, Content: buyListResultMsg.String(), Header: msgHeaderInProgress.String()}
+			progressCh <- Progress{Index: len(stocks), StockCode: stocks[len(stocks)-1].Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
+		} else {
+			msgHeader.Reset()
+			msgHeader.WriteString("❌ Tidak ditemukan sinyal BUY hari ini.")
+			msgFooter := fmt.Sprintf(`
+
+📌 Interval: %s  
+📅 Time Range: %s 
+
+Coba lagi besok atau gunakan filter /analyze untuk menemukan peluang baru.
+			
+			`, strings.ToUpper(interval), strings.ToUpper(rng))
+			buyListResultMsg.WriteString(msgFooter)
+			progressCh <- Progress{Index: len(stocks), StockCode: stocks[len(stocks)-1].Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 		}
 
 		close(progressCh)
