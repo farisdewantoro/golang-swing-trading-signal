@@ -238,7 +238,8 @@ type GeminiAIResponse struct {
 }
 
 type GeminiCandidate struct {
-	Content GeminiContent `json:"content"`
+	Content      GeminiContent `json:"content"`
+	FinishReason string        `json:"finishReason"`
 }
 
 // Error Response

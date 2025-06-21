@@ -134,10 +134,6 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 		})
 	}
 
-	c.logger.Debug("Sending request to Gemini AI", logrus.Fields{
-		"prompt": prompt,
-	})
-
 	// Build request URL
 	requestURL := fmt.Sprintf("%s/%s:generateContent?key=%s",
 		c.config.BaseURL, c.config.Model, c.config.APIKey)
@@ -155,6 +151,11 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 			Temperature: c.config.RequestTemperature,
 		},
 	}
+
+	c.logger.Debug("Sending request to Gemini AI", logrus.Fields{
+		"request_body": requestBody,
+		"request_url":  requestURL,
+	})
 
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
@@ -193,6 +194,10 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 		return "", fmt.Errorf("failed to unmarshal Gemini AI response: %w", err)
 	}
 
+	c.logger.Debug("Gemini AI response", logrus.Fields{
+		"candidates": geminiResp.Candidates,
+	})
+
 	// Check if we have candidates
 	if len(geminiResp.Candidates) == 0 {
 		return "", fmt.Errorf("no response candidates from Gemini AI")
@@ -201,6 +206,10 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 	candidate := geminiResp.Candidates[0]
 	if len(candidate.Content.Parts) == 0 {
 		return "", fmt.Errorf("no content parts in Gemini AI response")
+	}
+
+	if strings.ToLower(candidate.FinishReason) != "stop" {
+		return "", fmt.Errorf("gemini AI response did not finish: %s", candidate.FinishReason)
 	}
 
 	return candidate.Content.Parts[0].Text, nil
@@ -219,8 +228,9 @@ func (c *Client) buildIndividualAnalysisPrompt(
 	// Ringkasan sentimen dari berita
 	newsSummaryText := ""
 	if summary != nil {
-		newsSummaryText = fmt.Sprintf(`Berikut adalah ringkasan sentimen berita untuk saham %s selama periode %s hingga %s:
-
+		newsSummaryText = fmt.Sprintf(`
+### INPUT BERITA TERKINI
+Berikut adalah ringkasan berita untuk saham %s selama periode %s hingga %s:
 - Sentimen utama: %s
 - Dampak terhadap harga: %s
 - Key issues: %s
@@ -229,7 +239,7 @@ func (c *Client) buildIndividualAnalysisPrompt(
 - Saran tindakan: %s
 - Alasan: %s
 
-Gunakan ringkasan ini untuk mempertimbangkan konteks eksternal (berita) dalam analisis berikut:
+**Gunakan informasi ini sebagai konteks eksternal saat menganalisis data teknikal.**
 `,
 			summary.StockCode,
 			summary.SummaryStart.Format("2006-01-02"),
@@ -244,17 +254,30 @@ Gunakan ringkasan ini untuk mempertimbangkan konteks eksternal (berita) dalam an
 		)
 	}
 
-	prompt := fmt.Sprintf(`Anda adalah analis teknikal saham Indonesia yang ahli. Analisis data OHLC berikut untuk saham %s dan berikan rekomendasi trading swing (1-5 hari).
+	prompt := fmt.Sprintf(`
+### PERAN ANDA
+Anda adalah analis teknikal profesional dengan pengalaman lebih dari 10 tahun di pasar saham Indonesia. Tugas Anda adalah melakukan analisis teknikal dan memberikan sinyal trading **swing jangka pendek (1-5 hari)** berdasarkan data harga (OHLC) dan berita pasar untuk saham %s.
 
-  %s
+### TUJUAN
+Berikan rekomendasi trading dalam format JSON berdasarkan:
+- Analisis tren teknikal dan indikator (EMA, RSI, MACD, Bollinger Bands, volume, candlestick)
+- Struktur pasar, support/resistance
+- Konteks berita terbaru
+- Manajemen risiko ketat: Hanya berikan sinyal **BUY** jika **risk/reward ratio ≥ 1:3**
 
-Data OHLC %s:
 %s
 
-Current Market Price: %.2f (ini adalah harga pasar saat ini)
 
+### INPUT DATA HARGA (OHLC %s terakhir)
+(Data OHLC seperti sebelumnya, tidak perlu diubah di sini) :
+%s
+
+### HARGA PASAR SAAT INI
+%.2f (ini adalah harga pasar saat ini)
+
+### KRITERIA ANALISIS TEKNIKAL
 Analisis teknikal yang diperlukan:
-1. Trend: BULLISH/BEARISH/SIDEWAYS (short-term 1-3 hari, medium-term 1-2 minggu)
+1. Trend: BULLISH/BEARISH/SIDEWAYS
 2. Technical indicators:
    - EMA signal (BULLISH, BEARISH, NEUTRAL)
    - RSI signal (OVERBOUGHT, OVERSOLD, NEUTRAL)
@@ -265,20 +288,20 @@ Analisis teknikal yang diperlukan:
 5. Candlestick pattern terbaru
 6. Technical score (0-100)
 
-KRITERIA PENTING:
-- BUY signal hanya jika risk-reward ratio ≥ 1:3
-- Target price harus realistis berdasarkan resistance levels
-- Cut loss berdasarkan support levels yang kuat
-- Max holding period 1-5 hari berdasarkan trend strength
-- Pertimbangkan Data Ringkasan Analisa Berita yang diberikan (JIKA ADA NEWS SUMMARY)
-- Ulangi analisis Anda jika risk/reward tidak memenuhi. Jangan berikan sinyal BUY jika potensi kerugian lebih besar daripada potensi keuntungan. Ketatkan logika manajemen risiko seperti layaknya seorang trader profesional.
+### PANDUAN MANAJEMEN RISIKO
+- Berikan **BUY signal** hanya jika:
+  - Risk/reward ratio ≥ 1:3
+  - Trend, indikator, dan volume mendukung
+- Cut loss berdasarkan support kuat
+- Target price harus realistis dan berdasarkan resistance  
+- Maksimal holding 1-5 hari
+- Ulangi analisis jika syarat tidak terpenuhi dan output sinyal: HOLD
 
-
-Return response dalam format JSON:
+### FORMAT OUTPUT (JSON):
 {
   "symbol": "%s",
-  "analysis_date": "%s",
-  "signal": "BUY|HOLD|SELL",
+  "analysis_date": {{current_asia_jakarta_time}},
+  "signal": "BUY|HOLD",
   "max_holding_period_days": (1 sampai 5 hari),
   "technical_analysis": {
     "trend": "BULLISH|BEARISH|SIDEWAYS",
@@ -302,7 +325,7 @@ Return response dalam format JSON:
     "technical_score": 85
   },
   "recommendation": {
-    "action": "BUY|HOLD|SELL",
+    "action": "BUY|HOLD",
     "buy_price": (Harga pembelian),
     "target_price": (Harga target - risk_reward_ratio ≥ 1:3),
     "cut_loss": (Harga cut loss),
@@ -313,7 +336,7 @@ Return response dalam format JSON:
       "potential_profit_percentage": 5.14,
       "potential_loss": 350,
       "potential_loss_percentage": 4.0,
-      "risk_reward_ratio": 1.29 (PENTING UNTUK BUY ≥ 1:3),
+      "risk_reward_ratio": 1.29,
       "risk_level": "LOW|MEDIUM|HIGH",
       "expected_holding_period": "3-5 days",
       "success_probability": 75
@@ -340,7 +363,7 @@ Return response dalam format JSON:
     "impact": "bullish, bearish, sideways"
     "key_issues": ["issue1", "issue2", "issue3"]
   }
-}`, symbol, newsSummaryText, dataInfo.Range, string(ohlcvJSON), dataInfo.MarketPrice, symbol, time.Now().Format("2006-01-02T15:04:05-07:00"))
+}`, symbol, newsSummaryText, dataInfo.Range, string(ohlcvJSON), dataInfo.MarketPrice, symbol)
 
 	return prompt
 }
