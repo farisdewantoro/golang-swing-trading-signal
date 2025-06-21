@@ -3,7 +3,6 @@ package trading_analysis
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"golang-swing-trading-signal/internal/models"
@@ -152,20 +151,20 @@ func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string, int
 	bestProfit := -999.0
 	worstProfit := 999.0
 
-	log.Printf("Starting analysis of %d stocks", len(stockList))
+	a.logger.Infof("Starting analysis of %d stocks", len(stockList))
 
 	// Analyze each stock
 	for i, symbol := range stockList {
-		log.Printf("[%d/%d] Analyzing stock: %s", i+1, len(stockList), symbol)
+		a.logger.Infof("[%d/%d] Analyzing stock: %s", i+1, len(stockList), symbol)
 
 		analysis, err := a.AnalyzeStock(ctx, symbol, interval, period)
 		if err != nil {
 			// Log error but continue with other stocks
-			log.Printf("Error analyzing %s: %v", symbol, err)
+			a.logger.Errorf("Error analyzing %s: %v", symbol, err)
 			continue
 		}
 
-		log.Printf("Successfully analyzed %s - Signal: %s, Confidence: %d", symbol, analysis.Signal, analysis.TechnicalSummary.ConfidenceLevel)
+		a.logger.Infof("Successfully analyzed %s - Signal: %s, Confidence: %d", symbol, analysis.Signal, analysis.TechnicalSummary.ConfidenceLevel)
 
 		stockSummary := models.StockSummary{
 			Symbol:           symbol,
@@ -200,7 +199,7 @@ func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string, int
 
 	}
 
-	log.Printf("Analysis completed. Total analyzed: %d, Buy signals: %d, Hold signals: %d", len(buyList)+len(holdList), len(buyList), len(holdList))
+	a.logger.Infof("Analysis completed. Total analyzed: %d, Buy signals: %d, Hold signals: %d", len(buyList)+len(holdList), len(buyList), len(holdList))
 
 	totalStocks := len(buyList) + len(holdList)
 	if totalStocks == 0 {

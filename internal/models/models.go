@@ -216,11 +216,16 @@ type PositionMonitoringResponse struct {
 
 // Gemini AI Request
 type GeminiAIRequest struct {
-	Contents []GeminiContent `json:"contents"`
+	Contents         []GeminiContent         `json:"contents"`
+	GenerationConfig *GeminiGenerationConfig `json:"generationConfig"`
 }
 
 type GeminiContent struct {
 	Parts []GeminiPart `json:"parts"`
+}
+
+type GeminiGenerationConfig struct {
+	Temperature float64 `json:"temperature"`
 }
 
 type GeminiPart struct {

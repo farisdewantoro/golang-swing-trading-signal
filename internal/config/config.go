@@ -38,6 +38,7 @@ type GeminiConfig struct {
 	Model               string
 	MaxRequestPerMinute int
 	MaxTokenPerMinute   int
+	RequestTemperature  float64
 }
 
 type TradingConfig struct {
@@ -89,6 +90,7 @@ func LoadConfig() (*Config, error) {
 			Model:               viper.GetString("GEMINI_MODEL"),
 			MaxRequestPerMinute: viper.GetInt("GEMINI_MAX_REQUEST_PER_MINUTE"),
 			MaxTokenPerMinute:   viper.GetInt("GEMINI_MAX_TOKEN_PER_MINUTE"),
+			RequestTemperature:  viper.GetFloat64("GEMINI_REQUEST_TEMPERATURE"),
 		},
 		Trading: TradingConfig{
 			DefaultMaxHoldingPeriodDays: viper.GetInt("DEFAULT_MAX_HOLDING_PERIOD_DAYS"),

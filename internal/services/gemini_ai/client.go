@@ -151,6 +151,9 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 				},
 			},
 		},
+		GenerationConfig: &models.GeminiGenerationConfig{
+			Temperature: c.config.RequestTemperature,
+		},
 	}
 
 	jsonBody, err := json.Marshal(requestBody)
