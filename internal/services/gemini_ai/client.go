@@ -152,15 +152,15 @@ func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error)
 		},
 	}
 
-	c.logger.Debug("Sending request to Gemini AI", logrus.Fields{
-		"request_body": requestBody,
-		"request_url":  requestURL,
-	})
-
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal request body: %w", err)
 	}
+
+	c.logger.Debug("Sending request to Gemini AI", logrus.Fields{
+		"request_body": jsonBody,
+		"request_url":  requestURL,
+	})
 
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(ctx, "POST", requestURL, bytes.NewBuffer(jsonBody))
@@ -300,7 +300,7 @@ Analisis teknikal yang diperlukan:
 ### FORMAT OUTPUT (JSON):
 {
   "symbol": "%s",
-  "analysis_date": {{current_asia_jakarta_time}},
+  "analysis_date": "%s",
   "signal": "BUY|HOLD",
   "max_holding_period_days": (1 sampai 5 hari),
   "technical_analysis": {
@@ -363,7 +363,7 @@ Analisis teknikal yang diperlukan:
     "impact": "bullish, bearish, sideways"
     "key_issues": ["issue1", "issue2", "issue3"]
   }
-}`, symbol, newsSummaryText, dataInfo.Range, string(ohlcvJSON), dataInfo.MarketPrice, symbol)
+}`, symbol, newsSummaryText, dataInfo.Range, string(ohlcvJSON), dataInfo.MarketPrice, symbol, time.Now().Format("2006-01-02T15:04:05-07:00"))
 
 	return prompt
 }
