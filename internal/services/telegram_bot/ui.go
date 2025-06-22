@@ -32,6 +32,7 @@ var (
 	btnActionNewsFind                      telebot.Btn = telebot.Btn{Text: "• Cari Berita", Unique: "btn_action_news_find"}
 	btnActionNewsAlert                     telebot.Btn = telebot.Btn{Text: "• Alert Berita Penting Saham", Unique: "btn_action_news_alert"}
 	btnActionNewsDailySummary              telebot.Btn = telebot.Btn{Text: "• Ringkasan Berita", Unique: "btn_action_news_daily_summary"}
+	btnNewsConfirmSendSummary              telebot.Btn = telebot.Btn{Unique: "btn_news_confirm_send_summary"}
 )
 
 var (

@@ -58,6 +58,8 @@ type TelegramConfig struct {
 	MaxEditMessagePerSecond   int
 	RatelimitExpireDuration   time.Duration
 	RateLimitCleanupDuration  time.Duration
+	FeatureNewsMaxAgeInDays   int
+	FeatureNewsLimitStockNews int
 }
 
 func LoadConfig() (*Config, error) {
@@ -116,6 +118,8 @@ func LoadConfig() (*Config, error) {
 			MaxEditMessagePerSecond:   viper.GetInt("TELEGRAM_MAX_EDIT_MESSAGE_PER_SECOND"),
 			RatelimitExpireDuration:   viper.GetDuration("TELEGRAM_RATELIMIT_EXPIRE_DURATION"),
 			RateLimitCleanupDuration:  viper.GetDuration("TELEGRAM_RATE_LIMIT_CLEANUP_DURATION"),
+			FeatureNewsMaxAgeInDays:   viper.GetInt("TELEGRAM_FEATURE_NEWS_MAX_AGE_IN_DAYS"),
+			FeatureNewsLimitStockNews: viper.GetInt("TELEGRAM_FEATURE_NEWS_LIMIT_STOCK_NEWS"),
 		},
 		Database: postgres.Config{
 			Host:            viper.GetString("DATABASE_HOST"),

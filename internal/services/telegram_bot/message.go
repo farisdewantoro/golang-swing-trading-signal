@@ -770,3 +770,32 @@ func (t *TelegramBotService) formatMessageNewsList(newsList []models.StockNewsEn
 
 	return sb.String()
 }
+
+func (t *TelegramBotService) formatMessageNewsSummary(summary *models.StockNewsSummaryEntity) string {
+
+	action := strings.ToUpper(summary.SuggestedAction)
+	iconAction := "❔"
+	if action == "HOLD" {
+		iconAction = "🟡"
+	} else if action == "SELL" {
+		iconAction = "🔴"
+	} else if action == "BUY" {
+		iconAction = "🟢"
+	}
+
+	sb := &strings.Builder{}
+	sb.WriteString(fmt.Sprintf("📚 *Ringkasan Analisis Saham $%s*\n\n", summary.StockCode))
+	sb.WriteString(fmt.Sprintf("📝 *TL;DR:* %s\n\n", summary.ShortSummary))
+	sb.WriteString(fmt.Sprintf("🧠 *Sentimen:* %s\n", summary.SummarySentiment))
+	sb.WriteString(fmt.Sprintf("📈 *Dampak:* %s\n", summary.SummaryImpact))
+	sb.WriteString(fmt.Sprintf("📉 *Confidence Score:* %.2f\n", summary.SummaryConfidenceScore))
+	sb.WriteString(fmt.Sprintf("🎯 *Saran:* %s %s\n", iconAction, action))
+	sb.WriteString("\n🔑 *Isu Kunci:*\n")
+	for _, issue := range summary.KeyIssues {
+		sb.WriteString(fmt.Sprintf("• %s\n", issue))
+	}
+	sb.WriteString(fmt.Sprintf("\n🧩 *Alasan:* %s\n\n", summary.Reasoning))
+	sb.WriteString(fmt.Sprintf("📆 *Periode:* %s - %s\n", summary.SummaryStart.Format("2006-01-02"), summary.SummaryEnd.Format("2006-01-02")))
+
+	return sb.String()
+}

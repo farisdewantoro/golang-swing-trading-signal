@@ -50,6 +50,8 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle(&btnSaveExitPosition, t.WithContext(t.handleBtnSaveExitPosition))
 	t.bot.Handle(&btnCancelBuyListAnalysis, t.WithContext(t.handleBtnCancelBuyListAnalysis))
 	t.bot.Handle(&btnActionNewsFind, t.WithContext(t.handleBtnActionNewsFind))
+	t.bot.Handle(&btnNewsConfirmSendSummary, t.WithContext(t.handleBtnNewsConfirmSendSummary))
+	t.bot.Handle(&btnNewsStockPosition, t.WithContext(t.handleBtnNewsStockPosition))
 
 	// Handle incoming text messages for conversations
 	t.bot.Handle(telebot.OnText, t.WithContext(t.handleConversation))
@@ -136,8 +138,8 @@ func (t *TelegramBotService) handleConversation(ctx context.Context, c telebot.C
 		return t.handleGeneralAnalysis(ctx, c)
 	case state >= StateWaitingExitPositionInputExitPrice && state <= StateWaitingExitPositionConfirm:
 		return t.handleExitPositionConversation(ctx, c)
-	case state == StateWaitingNewsFindSymbol:
-		return t.handleNewsFind(ctx, c)
+	case state >= StateWaitingNewsFindSymbol && state <= StateWaitingNewsFindSendSummaryConfirmation:
+		return t.handleNewsFindConversation(ctx, c)
 	default:
 		// If no specific conversation is matched, maybe it's a dangling state.
 		t.ResetUserState(userID)

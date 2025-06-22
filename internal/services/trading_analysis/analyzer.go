@@ -46,7 +46,7 @@ func (a *Analyzer) AnalyzeStock(ctx context.Context, symbol string, interval, pe
 
 	// Get last stock news summary
 	beforeTime := utils.GetNowWithOnlyHour().Add(-time.Hour * 24 * 3)
-	lastStockNewsSummary, err := a.stockNewsSummaryRepository.GetLast(beforeTime, symbol)
+	lastStockNewsSummary, err := a.stockNewsSummaryRepository.GetLast(ctx, beforeTime, symbol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last stock news summary: %w", err)
 	}
@@ -73,7 +73,7 @@ func (a *Analyzer) MonitorPosition(ctx context.Context, request models.PositionM
 
 	// Get last stock news summary
 	beforeTime := utils.GetNowWithOnlyHour().Add(-time.Hour * 24 * 3)
-	lastStockNewsSummary, err := a.stockNewsSummaryRepository.GetLast(beforeTime, request.Symbol)
+	lastStockNewsSummary, err := a.stockNewsSummaryRepository.GetLast(ctx, beforeTime, request.Symbol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last stock news summary: %w", err)
 	}

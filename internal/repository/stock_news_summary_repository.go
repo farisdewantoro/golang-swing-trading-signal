@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"golang-swing-trading-signal/internal/models"
 	"time"
 
@@ -8,7 +9,7 @@ import (
 )
 
 type StockNewsSummaryRepository interface {
-	GetLast(before time.Time, stockCode string) (*models.StockNewsSummaryEntity, error)
+	GetLast(ctx context.Context, before time.Time, stockCode string) (*models.StockNewsSummaryEntity, error)
 }
 
 type stockNewsSummaryRepository struct {
@@ -21,9 +22,9 @@ func NewStockNewsSummaryRepository(db *gorm.DB) StockNewsSummaryRepository {
 	}
 }
 
-func (r *stockNewsSummaryRepository) GetLast(before time.Time, stockCode string) (*models.StockNewsSummaryEntity, error) {
+func (r *stockNewsSummaryRepository) GetLast(ctx context.Context, before time.Time, stockCode string) (*models.StockNewsSummaryEntity, error) {
 	var summary models.StockNewsSummaryEntity
-	result := r.db.Where("created_at >= ? AND stock_code = ?", before, stockCode).Order("created_at desc").First(&summary)
+	result := r.db.WithContext(ctx).Where("created_at >= ? AND stock_code = ?", before, stockCode).Order("created_at desc").First(&summary)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil

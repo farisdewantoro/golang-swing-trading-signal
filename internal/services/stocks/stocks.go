@@ -20,6 +20,7 @@ type StockService interface {
 	GetStockPosition(ctx context.Context, param models.StockPositionQueryParam) ([]models.StockPositionEntity, error)
 	GetByParam(ctx context.Context, param models.GetStocksParam) ([]models.StockEntity, error)
 	GetTopNews(ctx context.Context, param models.StockNewsQueryParam) ([]models.StockNewsEntity, error)
+	GetLastStockNewsSummary(ctx context.Context, age int, stockCode string) (*models.StockNewsSummaryEntity, error)
 }
 
 type stockService struct {
@@ -56,6 +57,10 @@ func (s *stockService) GetByParam(ctx context.Context, param models.GetStocksPar
 
 func (s *stockService) GetTopNews(ctx context.Context, param models.StockNewsQueryParam) ([]models.StockNewsEntity, error) {
 	return s.stockNewsRepository.GetTopNews(ctx, param)
+}
+
+func (s *stockService) GetLastStockNewsSummary(ctx context.Context, age int, stockCode string) (*models.StockNewsSummaryEntity, error) {
+	return s.stockNewsSummaryRepository.GetLast(ctx, utils.TimeNowWIB().AddDate(0, 0, -age), stockCode)
 }
 
 func (s *stockService) GetStockPosition(ctx context.Context, param models.StockPositionQueryParam) ([]models.StockPositionEntity, error) {
