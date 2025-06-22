@@ -82,3 +82,59 @@ type StockNewsSummaryEntity struct {
 func (StockNewsSummaryEntity) TableName() string {
 	return "stock_news_summary"
 }
+
+type GetStocksParam struct {
+	StockCodes []string `json:"stock_codes"`
+}
+
+// StockNews represents a news article related to stocks.
+type StockNewsEntity struct {
+	ID             uint                 `gorm:"primaryKey" json:"id"`
+	Title          string               `gorm:"not null" json:"title"`
+	Link           string               `gorm:"unique;not null" json:"link"`
+	PublishedAt    *time.Time           `json:"published_at,omitempty"`
+	RawContent     string               `json:"raw_content"`
+	Summary        string               `json:"summary"`
+	HashIdentifier string               `gorm:"unique;not null" json:"hash_identifier"`
+	Source         string               `json:"source"`
+	GoogleRSSLink  string               `json:"google_rss_link"`
+	ImpactScore    float64              `json:"impact_score"`
+	KeyIssue       pq.StringArray       `gorm:"key_issue;type:text[]" json:"key_issue"`
+	CreatedAt      time.Time            `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time            `gorm:"autoUpdateTime" json:"updated_at"`
+	StockMentions  []StockMentionEntity `gorm:"foreignKey:StockNewsID" json:"stock_mentions"`
+
+	// Fields populated by custom query for ranking
+	StockCode       string  `gorm:"-" json:"stock_code,omitempty"`
+	Sentiment       string  `gorm:"-" json:"sentiment,omitempty"`
+	Impact          string  `gorm:"-" json:"impact,omitempty"`
+	ConfidenceScore float64 `gorm:"-" json:"confidence_score,omitempty"`
+	FinalScore      float64 `gorm:"-" json:"final_score,omitempty"`
+}
+
+// TableName specifies the table name for the StockNews model.
+func (StockNewsEntity) TableName() string {
+	return "stock_news"
+}
+
+// StockMention represents a mention of a stock in a news article.
+type StockMentionEntity struct {
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	StockNewsID     uint      `json:"stock_news_id"`
+	StockCode       string    `gorm:"not null" json:"stock_code"`
+	Sentiment       string    `gorm:"not null" json:"sentiment"`
+	Impact          string    `gorm:"not null" json:"impact"`
+	ConfidenceScore float64   `gorm:"not null" json:"confidence_score"`
+	CreatedAt       time.Time `gorm:"autoCreateTime" json:"created_at"`
+}
+
+func (StockMentionEntity) TableName() string {
+	return "stock_mentions"
+}
+
+type StockNewsQueryParam struct {
+	StockCodes       []string `json:"stock_codes"`
+	Limit            int      `json:"limit"`
+	MaxNewsAgeInDays int      `json:"max_news_age_in_days"`
+	PriorityDomains  []string `json:"priority_domains"`
+}

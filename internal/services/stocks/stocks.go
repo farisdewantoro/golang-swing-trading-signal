@@ -18,6 +18,8 @@ type StockService interface {
 	DeleteStockPositionTelegramUser(ctx context.Context, telegramID int64, stockPositionID uint) error
 	GetStockPositionsTelegramUser(ctx context.Context, telegramID int64) ([]models.StockPositionEntity, error)
 	GetStockPosition(ctx context.Context, param models.StockPositionQueryParam) ([]models.StockPositionEntity, error)
+	GetByParam(ctx context.Context, param models.GetStocksParam) ([]models.StockEntity, error)
+	GetTopNews(ctx context.Context, param models.StockNewsQueryParam) ([]models.StockNewsEntity, error)
 }
 
 type stockService struct {
@@ -28,9 +30,10 @@ type stockService struct {
 	stockPositionRepository    repository.StockPositionRepository
 	userRepository             repository.UserRepository
 	unitOfWork                 repository.UnitOfWork
+	stockNewsRepository        repository.StocksNewsRepository
 }
 
-func NewStockService(cfg *config.Config, stocksRepository repository.StocksRepository, stockNewsSummaryRepository repository.StockNewsSummaryRepository, stockPositionRepository repository.StockPositionRepository, userRepository repository.UserRepository, logger *logrus.Logger, unitOfWork repository.UnitOfWork) StockService {
+func NewStockService(cfg *config.Config, stocksRepository repository.StocksRepository, stockNewsSummaryRepository repository.StockNewsSummaryRepository, stockPositionRepository repository.StockPositionRepository, userRepository repository.UserRepository, logger *logrus.Logger, unitOfWork repository.UnitOfWork, stockNewsRepository repository.StocksNewsRepository) StockService {
 	return &stockService{
 		cfg:                        cfg,
 		stocksRepository:           stocksRepository,
@@ -39,11 +42,20 @@ func NewStockService(cfg *config.Config, stocksRepository repository.StocksRepos
 		userRepository:             userRepository,
 		logger:                     logger,
 		unitOfWork:                 unitOfWork,
+		stockNewsRepository:        stockNewsRepository,
 	}
 }
 
 func (s *stockService) GetStocks(ctx context.Context) ([]models.StockEntity, error) {
-	return s.stocksRepository.GetStocks(ctx)
+	return s.stocksRepository.GetStocks(ctx, models.GetStocksParam{})
+}
+
+func (s *stockService) GetByParam(ctx context.Context, param models.GetStocksParam) ([]models.StockEntity, error) {
+	return s.stocksRepository.GetStocks(ctx, param)
+}
+
+func (s *stockService) GetTopNews(ctx context.Context, param models.StockNewsQueryParam) ([]models.StockNewsEntity, error) {
+	return s.stockNewsRepository.GetTopNews(ctx, param)
 }
 
 func (s *stockService) GetStockPosition(ctx context.Context, param models.StockPositionQueryParam) ([]models.StockPositionEntity, error) {

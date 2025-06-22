@@ -29,6 +29,9 @@ var (
 	btnSaveExitPosition                    telebot.Btn = telebot.Btn{Text: "💾 Simpan", Unique: "btn_save_exit_position"}
 	btnCancelGeneral                       telebot.Btn = telebot.Btn{Text: "❌ Batal", Unique: "btn_cancel_general"}
 	btnCancelBuyListAnalysis               telebot.Btn = telebot.Btn{Text: "⛔ Hentikan Analisis", Unique: "btn_cancel_buy_list_analysis"}
+	btnActionNewsFind                      telebot.Btn = telebot.Btn{Text: "• Cari Berita", Unique: "btn_action_news_find"}
+	btnActionNewsAlert                     telebot.Btn = telebot.Btn{Text: "• Alert Berita Penting Saham", Unique: "btn_action_news_alert"}
+	btnActionNewsDailySummary              telebot.Btn = telebot.Btn{Text: "• Ringkasan Berita", Unique: "btn_action_news_daily_summary"}
 )
 
 var (

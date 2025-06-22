@@ -51,6 +51,8 @@ const (
 	StateWaitingExitPositionInputExitPrice = 30
 	StateWaitingExitPositionInputExitDate  = 31
 	StateWaitingExitPositionConfirm        = 32
+
+	StateWaitingNewsFindSymbol = 40
 )
 
 type TelegramBotService struct {

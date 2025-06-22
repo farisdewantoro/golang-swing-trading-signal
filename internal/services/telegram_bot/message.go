@@ -740,3 +740,33 @@ func (t *TelegramBotService) formatMessageBuyList(index int, analysis *models.In
 	return sb
 
 }
+
+func (t *TelegramBotService) formatMessageMenuNews() string {
+	result := `📋 Menu Berita Saham
+
+Tetap update dengan pergerakan pasar.
+Cari berita saham, aktifkan rangkuman harian,
+atau nyalakan alert otomatis saat muncul berita penting
+yang bisa mempengaruhi harga saham.
+
+Pilih fitur yang ingin kamu akses:`
+
+	return result
+
+}
+
+func (t *TelegramBotService) formatMessageNewsList(newsList []models.StockNewsEntity, age int) string {
+	sb := &strings.Builder{}
+	sb.WriteString(fmt.Sprintf("📢 Berikut adalah rangkuman berita penting terbaru yang berkaitan dengan saham $%s dalam %d hari terakhir", newsList[0].StockCode, age))
+
+	for _, news := range newsList {
+		sb.WriteString(fmt.Sprintf("\n\n📅 %s | %s\n", news.PublishedAt.Format("2006-01-02"), utils.TruncateTitle(news.Title, 50)))
+		sb.WriteString(fmt.Sprintf(" 🌐 %s\n", utils.ExtractDomain(news.Link)))
+		sb.WriteString(fmt.Sprintf(" 🔑 Isu: %s\n", utils.SummarizeIssues(news.KeyIssue, 5)))
+		sb.WriteString(fmt.Sprintf(" 💯 Score: %.2f\n", news.FinalScore))
+		link := fmt.Sprintf("[Link](%s)", news.Link)
+		sb.WriteString(fmt.Sprintf(" 🔗 %s\n", link))
+	}
+
+	return sb.String()
+}

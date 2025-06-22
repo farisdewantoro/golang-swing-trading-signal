@@ -83,6 +83,7 @@ func main() {
 	// Initialize repositories
 	stockNewsSummaryRepo := repository.NewStockNewsSummaryRepository(db.DB)
 	stockPositionRepo := repository.NewStockPositionRepository(db.DB)
+	stockNewsRepo := repository.NewStocksNewsRepository(db.DB)
 	stockRepo := repository.NewStocksRepository(db.DB)
 	userRepo := repository.NewUserRepository(db.DB)
 	unitOfWork := repository.NewUnitOfWork(db.DB)
@@ -120,7 +121,7 @@ func main() {
 	telegramRateLimiter := ratelimit.NewTelegramRateLimiter(&cfg.Telegram, logger, bot)
 	telegramRateLimiter.StartCleanupExpired(ctxCancel)
 
-	stockService := stocks.NewStockService(cfg, stockRepo, stockNewsSummaryRepo, stockPositionRepo, userRepo, logger, unitOfWork)
+	stockService := stocks.NewStockService(cfg, stockRepo, stockNewsSummaryRepo, stockPositionRepo, userRepo, logger, unitOfWork, stockNewsRepo)
 	telegramService := telegram_bot.NewTelegramBotService(&cfg.Telegram, ctxCancel, &cfg.Trading, logger, analyzer, stockService, bot, telegramRateLimiter, router)
 
 	// Initialize handlers

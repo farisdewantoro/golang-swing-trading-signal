@@ -19,6 +19,7 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle("/setposition", t.WithContext(t.handleSetPosition), t.IsOnConversationMiddleware())
 	t.bot.Handle("/cancel", t.handleCancel)
 	t.bot.Handle("/myposition", t.WithContext(t.handleMyPosition), t.IsOnConversationMiddleware())
+	t.bot.Handle("/news", t.WithContext(t.handleNews), t.IsOnConversationMiddleware())
 
 	// Inline button handlers
 
@@ -48,6 +49,7 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle(&btnCancelGeneral, t.WithContext(t.handleBtnCancel))
 	t.bot.Handle(&btnSaveExitPosition, t.WithContext(t.handleBtnSaveExitPosition))
 	t.bot.Handle(&btnCancelBuyListAnalysis, t.WithContext(t.handleBtnCancelBuyListAnalysis))
+	t.bot.Handle(&btnActionNewsFind, t.WithContext(t.handleBtnActionNewsFind))
 
 	// Handle incoming text messages for conversations
 	t.bot.Handle(telebot.OnText, t.WithContext(t.handleConversation))
@@ -75,6 +77,7 @@ Saya di sini untuk membantu kamu memantau saham dan mencari peluang terbaik dari
 📋 /buylist - Lihat daftar saham potensial untuk dibeli  
 📝 /setposition - Catat posisi saham yang sedang kamu pegang  
 📊 /myposition - Lihat semua posisi yang sedang dipantau  
+📰 /news - Lihat berita terkini, alert berita penting saham, ringkasan berita
 
 💡 Info & Bantuan:
 🆘 /help - Lihat panduan penggunaan lengkap  
@@ -100,6 +103,7 @@ Berikut daftar perintah yang bisa kamu gunakan:
 /buylist - Lihat saham potensial yang sedang menarik untuk dibeli  
 /setposition - Catat saham yang kamu beli agar bisa dipantau otomatis  
 /myposition - Lihat semua posisi yang sedang kamu pantau  
+/news - Lihat berita terkini, alert berita penting saham, ringkasan berita
 /cancel - Batalkan perintah yang sedang berjalan
 
 💡 *Tips Penggunaan:*
@@ -132,6 +136,8 @@ func (t *TelegramBotService) handleConversation(ctx context.Context, c telebot.C
 		return t.handleGeneralAnalysis(ctx, c)
 	case state >= StateWaitingExitPositionInputExitPrice && state <= StateWaitingExitPositionConfirm:
 		return t.handleExitPositionConversation(ctx, c)
+	case state == StateWaitingNewsFindSymbol:
+		return t.handleNewsFind(ctx, c)
 	default:
 		// If no specific conversation is matched, maybe it's a dangling state.
 		t.ResetUserState(userID)
