@@ -110,6 +110,7 @@ type StockNewsEntity struct {
 	Impact          string  `gorm:"-" json:"impact,omitempty"`
 	ConfidenceScore float64 `gorm:"-" json:"confidence_score,omitempty"`
 	FinalScore      float64 `gorm:"-" json:"final_score,omitempty"`
+	Reason          string  `gorm:"-" json:"reason,omitempty"`
 }
 
 // TableName specifies the table name for the StockNews model.
@@ -125,6 +126,7 @@ type StockMentionEntity struct {
 	Sentiment       string    `gorm:"not null" json:"sentiment"`
 	Impact          string    `gorm:"not null" json:"impact"`
 	ConfidenceScore float64   `gorm:"not null" json:"confidence_score"`
+	Reason          string    `gorm:"not null" json:"reason"`
 	CreatedAt       time.Time `gorm:"autoCreateTime" json:"created_at"`
 }
 

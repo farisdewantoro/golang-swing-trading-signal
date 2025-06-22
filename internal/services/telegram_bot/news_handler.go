@@ -35,7 +35,7 @@ func (t *TelegramBotService) handleBtnActionNewsFind(ctx context.Context, c tele
 	msg := `🔍 Silakan masukkan kode saham yang ingin kamu cari berita
 (contoh: BBRI, TLKM, ANTM)
 `
-	_, err := t.telegramRateLimiter.Send(ctx, c, msg, telebot.ModeMarkdown)
+	_, err := t.telegramRateLimiter.Edit(ctx, c, c.Message(), msg, telebot.ModeMarkdown)
 	return err
 }
 
@@ -55,7 +55,7 @@ func (t *TelegramBotService) handleNewsFindConversation(ctx context.Context, c t
 
 func (t *TelegramBotService) handleNewsFind(ctx context.Context, c telebot.Context) error {
 	userID := c.Sender().ID
-	text := c.Text()
+	text := strings.ToUpper(c.Text())
 	state := t.userStates[userID]
 	var err error
 

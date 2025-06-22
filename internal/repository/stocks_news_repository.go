@@ -48,6 +48,7 @@ func (s *stocksNewsRepository) GetTopNews(ctx context.Context, param models.Stoc
 		sm.sentiment,
 		sm.impact,
 		sm.confidence_score,
+		sm.reason,
 		(0.5 * sm.confidence_score + 0.3 * sn.impact_score + 0.2 * GREATEST(0, 1 - (EXTRACT(EPOCH FROM (NOW() - sn.published_at)) / 86400) / %d)) AS final_score
 	FROM stock_news AS sn
 	JOIN stock_mentions AS sm ON sm.stock_news_id = sn.id
@@ -72,6 +73,7 @@ func (s *stocksNewsRepository) GetTopNews(ctx context.Context, param models.Stoc
 		Impact          string  `gorm:"column:impact"`
 		ConfidenceScore float64 `gorm:"column:confidence_score"`
 		FinalScore      float64 `gorm:"column:final_score"`
+		Reason          string  `gorm:"column:reason"`
 	}
 
 	var results []scanResult
@@ -88,6 +90,7 @@ func (s *stocksNewsRepository) GetTopNews(ctx context.Context, param models.Stoc
 		news[i].Impact = r.Impact
 		news[i].ConfidenceScore = r.ConfidenceScore
 		news[i].FinalScore = r.FinalScore
+		news[i].Reason = r.Reason
 	}
 
 	return news, nil

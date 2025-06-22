@@ -759,14 +759,15 @@ func (t *TelegramBotService) formatMessageNewsList(newsList []models.StockNewsEn
 	sb := &strings.Builder{}
 	sb.WriteString(fmt.Sprintf("📢 Berikut adalah rangkuman berita penting terbaru yang berkaitan dengan saham $%s dalam %d hari terakhir", newsList[0].StockCode, age))
 
-	for _, news := range newsList {
-		sb.WriteString(fmt.Sprintf("\n\n📅 %s | %s\n", news.PublishedAt.Format("2006-01-02"), utils.TruncateTitle(news.Title, 50)))
-		sb.WriteString(fmt.Sprintf(" 🌐 %s\n", utils.ExtractDomain(news.Link)))
-		sb.WriteString(fmt.Sprintf(" 🔑 Isu: %s\n", utils.SummarizeIssues(news.KeyIssue, 5)))
-		sb.WriteString(fmt.Sprintf(" 💯 Score: %.2f\n", news.FinalScore))
-		link := fmt.Sprintf("[Link](%s)", news.Link)
+	for idx, news := range newsList {
+		sb.WriteString(fmt.Sprintf("\n\n %d. %s\n", idx+1, utils.TruncateTitle(news.Title, 80)))
+		sb.WriteString(fmt.Sprintf(" 📅 %s | 🌐 %s\n", news.PublishedAt.Format("2006-01-02"), utils.ExtractDomain(news.Link)))
+		sb.WriteString(fmt.Sprintf(" 📊 Sentimen: %s | 💯 Score: %.2f\n", news.Sentiment, news.FinalScore))
+		sb.WriteString(fmt.Sprintf(" 🧠 %s\n", utils.TruncateTitle(news.Reason, 200)))
+		link := fmt.Sprintf("[Selengkapnya](%s)", news.Link)
 		sb.WriteString(fmt.Sprintf(" 🔗 %s\n", link))
 	}
+	sb.WriteString("\n")
 
 	return sb.String()
 }
