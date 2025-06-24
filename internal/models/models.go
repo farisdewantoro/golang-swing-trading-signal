@@ -178,6 +178,7 @@ type NewsSummary struct {
 	Sentiment       string   `json:"sentiment"`
 	Impact          string   `json:"impact"`
 	KeyIssues       []string `json:"key_issues"`
+	Reasoning       string   `json:"reasoning"`
 }
 
 // Position Monitoring Response
