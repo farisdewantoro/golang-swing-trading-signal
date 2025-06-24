@@ -57,9 +57,6 @@ func (a *Analyzer) AnalyzeStock(ctx context.Context, symbol string, interval, pe
 		return nil, fmt.Errorf("failed to analyze stock: %w", err)
 	}
 
-	// Set data info from Yahoo Finance response (even if not in Gemini response)
-	analysis.DataInfo = ohlcvDataWithInfo.DataInfo
-
 	return analysis, nil
 }
 
@@ -139,87 +136,6 @@ func (a *Analyzer) ValidateSymbol(ctx context.Context, symbol string) error {
 	}
 
 	return nil
-}
-
-// AnalyzeAllStocks analyzes all stocks from configuration and returns summary
-func (a *Analyzer) AnalyzeAllStocks(ctx context.Context, stockList []string, interval, period string) (*models.SummaryAnalysisResponse, error) {
-	var buyList []models.StockSummary
-	var holdList []models.StockSummary
-
-	bestOpportunity := ""
-	worstOpportunity := ""
-	bestProfit := -999.0
-	worstProfit := 999.0
-
-	a.logger.Infof("Starting analysis of %d stocks", len(stockList))
-
-	// Analyze each stock
-	for i, symbol := range stockList {
-		a.logger.Infof("[%d/%d] Analyzing stock: %s", i+1, len(stockList), symbol)
-
-		analysis, err := a.AnalyzeStock(ctx, symbol, interval, period)
-		if err != nil {
-			// Log error but continue with other stocks
-			a.logger.Errorf("Error analyzing %s: %v", symbol, err)
-			continue
-		}
-
-		a.logger.Infof("Successfully analyzed %s - Signal: %s, Confidence: %d", symbol, analysis.Signal, analysis.TechnicalSummary.ConfidenceLevel)
-
-		stockSummary := models.StockSummary{
-			Symbol:           symbol,
-			Signal:           analysis.Signal,
-			CurrentPrice:     analysis.DataInfo.MarketPrice,
-			BuyPrice:         analysis.Recommendation.BuyPrice,
-			TargetPrice:      analysis.Recommendation.TargetPrice,
-			StopLoss:         analysis.Recommendation.CutLoss,
-			MaxHoldingDays:   analysis.MaxHoldingPeriodDays,
-			ProfitPercentage: analysis.Recommendation.RiskRewardAnalysis.PotentialProfit,
-			RiskRewardRatio:  analysis.Recommendation.RiskRewardAnalysis.RiskRewardRatio,
-			Confidence:       analysis.TechnicalSummary.ConfidenceLevel,
-			RiskLevel:        analysis.RiskLevel,
-		}
-
-		// Categorize by signal
-		if analysis.Signal == "BUY" {
-			buyList = append(buyList, stockSummary)
-		} else if analysis.Signal == "HOLD" {
-			holdList = append(holdList, stockSummary)
-		}
-
-		// Track best and worst opportunities
-		if analysis.Recommendation.RiskRewardAnalysis.PotentialProfit > bestProfit {
-			bestProfit = analysis.Recommendation.RiskRewardAnalysis.PotentialProfit
-			bestOpportunity = symbol
-		}
-		if analysis.Recommendation.RiskRewardAnalysis.PotentialLoss > worstProfit {
-			worstProfit = analysis.Recommendation.RiskRewardAnalysis.PotentialLoss
-			worstOpportunity = symbol
-		}
-
-	}
-
-	a.logger.Infof("Analysis completed. Total analyzed: %d, Buy signals: %d, Hold signals: %d", len(buyList)+len(holdList), len(buyList), len(holdList))
-
-	totalStocks := len(buyList) + len(holdList)
-	if totalStocks == 0 {
-		return nil, fmt.Errorf("no stocks could be analyzed successfully")
-	}
-
-	summary := models.SummaryStatistics{
-		BestOpportunity:  bestOpportunity,
-		WorstOpportunity: worstOpportunity,
-	}
-
-	return &models.SummaryAnalysisResponse{
-		AnalysisDate: time.Now(),
-		BuyList:      buyList,
-		HoldList:     holdList,
-		TotalStocks:  totalStocks,
-		BuyCount:     len(buyList),
-		HoldCount:    len(holdList),
-		Summary:      summary,
-	}, nil
 }
 
 func (a *Analyzer) MonitorPositionTelegramUser(ctx context.Context, request *models.PositionMonitoringTelegramUserRequest) (*models.PositionMonitoringResponse, error) {

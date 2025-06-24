@@ -2,6 +2,7 @@ package telegram_bot
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"golang-swing-trading-signal/internal/models"
 	"golang-swing-trading-signal/internal/utils"
@@ -67,14 +68,57 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 	utils.SafeGo(func() {
 		newCtx, cancel := context.WithTimeout(t.ctx, t.config.TimeoutDuration)
 		defer cancel()
-		analysis, err := t.analyzer.AnalyzeStock(newCtx, symbol, interval, rng)
+
+		intervalTime, err := utils.GetTimeBefore(interval)
+		if err != nil {
+			close(stopChan)
+			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to parse interval")
+			if err := c.Send(commonMessageInternalError); err != nil {
+				t.logger.WithError(err).Error("Failed to send error message")
+			}
+			return
+		}
+
+		stockSignal, err := t.stockService.GetLatestStockSignal(newCtx, models.GetStockBuySignalParam{
+			Interval:  interval,
+			Range:     rng,
+			After:     intervalTime,
+			StockCode: symbol,
+			ReqAnalyzer: &models.RequestStockAnalyzer{
+				NotifyUser: true,
+				TelegramID: c.Sender().ID,
+			},
+		})
 
 		if err != nil {
 			close(stopChan)
-			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to analyze stock")
+			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to get stock signal")
 
 			// Send error message
-			err := c.Send(fmt.Sprintf("❌ Failed to analyze %s: %s", symbol, err.Error()))
+			err := c.Send(fmt.Sprintf("❌ Failed to get stock signal %s: %s", symbol, err.Error()))
+			if err != nil {
+				t.logger.WithError(err).Error("Failed to send error message")
+			}
+			return
+		}
+
+		if len(stockSignal) == 0 {
+			close(stopChan)
+			t.logger.WithField("symbol", symbol).Warn("No stock signal found")
+			// Send error message
+			err := c.Send(fmt.Sprintf("⏳ Data $%s belum tersedia saat ini..", symbol))
+			if err != nil {
+				t.logger.WithError(err).Error("Failed to send error message")
+			}
+			return
+		}
+
+		var analysis models.IndividualAnalysisResponse
+		if err := json.Unmarshal([]byte(stockSignal[0].Data), &analysis); err != nil {
+			close(stopChan)
+			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to unmarshal analysis")
+			// Send error message
+			err := c.Send(fmt.Sprintf("❌ Gagal parse data %s", symbol))
 			if err != nil {
 				t.logger.WithError(err).Error("Failed to send error message")
 			}
@@ -82,14 +126,14 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 		}
 
 		// Format analysis message
-		analysisMessage := t.FormatAnalysisMessage(analysis)
+		analysisMessage := t.FormatAnalysisMessage(&analysis)
 
 		// Stop animasi loading
 		close(stopChan)
 
 		// Ganti pesan loading dengan hasil analisa
 		_, err = t.bot.Edit(msg, analysisMessage, &telebot.SendOptions{
-			ParseMode: telebot.ModeHTML,
+			ParseMode: telebot.ModeMarkdown,
 		})
 		if err != nil {
 			t.logger.WithError(err).Error("Failed to send analysis message")

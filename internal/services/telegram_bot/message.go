@@ -27,9 +27,9 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 
 	// Technical Analysis
 	sb.WriteString("🔧 <b>Technical Analysis:</b>\n")
-	sb.WriteString(fmt.Sprintf("Trend: %s (Strength: %s)\n", position.Recommendation.TechnicalAnalysis.Trend, position.Recommendation.TechnicalAnalysis.TrendStrength))
+	sb.WriteString(fmt.Sprintf("Trend: %s\n", position.Recommendation.TechnicalAnalysis.Trend))
 	sb.WriteString(fmt.Sprintf("EMA: %s | RSI: %s\n", position.Recommendation.TechnicalAnalysis.EMASignal, position.Recommendation.TechnicalAnalysis.RSISignal))
-	sb.WriteString(fmt.Sprintf("MACD: %s | Volume: %s\n", position.Recommendation.TechnicalAnalysis.MACDSignal, position.Recommendation.TechnicalAnalysis.VolumeTrend))
+	sb.WriteString(fmt.Sprintf("MACD: %s\n", position.Recommendation.TechnicalAnalysis.MACDSignal))
 	sb.WriteString(fmt.Sprintf("Support: $%.2f | Resistance: $%.2f\n", position.Recommendation.TechnicalAnalysis.SupportLevel, position.Recommendation.TechnicalAnalysis.ResistanceLevel))
 	sb.WriteString(fmt.Sprintf("Technical Score: %d/100\n\n", position.Recommendation.TechnicalAnalysis.TechnicalScore))
 
@@ -239,104 +239,52 @@ func (t *TelegramBotService) FormatBuyListMessage(summary *models.SummaryAnalysi
 func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAnalysisResponse) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("📊 <b>Analysis for %s</b>\n", analysis.Symbol))
+	sb.WriteString(fmt.Sprintf("📊 **Analysis for %s**\n", analysis.Symbol))
 	sb.WriteString(fmt.Sprintf("📅 Date: %s\n", analysis.AnalysisDate.Format("2006-01-02 15:04:05")))
-	sb.WriteString(fmt.Sprintf("🎯 Signal: <b>%s</b>\n\n", analysis.Signal))
+	sb.WriteString(fmt.Sprintf("🎯 Signal: **%s**\n\n", analysis.Recommendation.Action))
 
 	// Technical Analysis Summary
-	sb.WriteString("🔧 <b>Technical Analysis:</b>\n")
-	sb.WriteString(fmt.Sprintf("Trend: %s (Strength: %s)\n", analysis.TechnicalAnalysis.Trend, analysis.TechnicalAnalysis.TrendStrength))
-	sb.WriteString(fmt.Sprintf("EMA Signal: %s\n", analysis.TechnicalAnalysis.EMASignal))
-	sb.WriteString(fmt.Sprintf("RSI: %s\n", analysis.TechnicalAnalysis.RSISignal))
-	sb.WriteString(fmt.Sprintf("MACD: %s | Momentum: %s\n", analysis.TechnicalAnalysis.MACDSignal, analysis.TechnicalAnalysis.Momentum))
-	sb.WriteString(fmt.Sprintf("Volume: %s | Technical Score: %d/100\n\n", analysis.TechnicalAnalysis.VolumeTrend, analysis.TechnicalAnalysis.TechnicalScore))
+	sb.WriteString("🔧 **Technical Analysis:**\n")
+	sb.WriteString(fmt.Sprintf("• Trend: %s \n", analysis.TechnicalAnalysis.Trend))
+	sb.WriteString(fmt.Sprintf("• EMA Signal: %s\n", analysis.TechnicalAnalysis.EMASignal))
+	sb.WriteString(fmt.Sprintf("• RSI: %s\n", analysis.TechnicalAnalysis.RSISignal))
+	sb.WriteString(fmt.Sprintf("• MACD: %s\n", analysis.TechnicalAnalysis.MACDSignal))
+	sb.WriteString(fmt.Sprintf("• Momentum: %s\n", analysis.TechnicalAnalysis.Momentum))
+	sb.WriteString(fmt.Sprintf("• Bollinger Bands Position: %s\n", analysis.TechnicalAnalysis.BollingerBandsPosition))
+	sb.WriteString(fmt.Sprintf("• Support Level: $%.2f\n", analysis.TechnicalAnalysis.SupportLevel))
+	sb.WriteString(fmt.Sprintf("• Resistance Level: $%.2f\n", analysis.TechnicalAnalysis.ResistanceLevel))
+	sb.WriteString(fmt.Sprintf("• Technical Score: %d/100\n", analysis.TechnicalAnalysis.TechnicalScore))
+	if len(analysis.TechnicalAnalysis.KeyInsights) > 0 {
+		sb.WriteString("\n📌 **Key Insights:**\n")
+		for _, insight := range analysis.TechnicalAnalysis.KeyInsights {
+			sb.WriteString(fmt.Sprintf("• %s\n", utils.CapitalizeSentence(insight)))
+		}
+		sb.WriteString("\n")
+	}
 
 	// News Summary
-	sb.WriteString("📰 <b>News Summary Analysis:</b>\n")
+	sb.WriteString("📰 **News Summary Analysis:**\n")
 	sb.WriteString(fmt.Sprintf("Confidence Score: %.2f\n", analysis.NewsSummary.ConfidenceScore))
 	sb.WriteString(fmt.Sprintf("Sentiment: %s\n", analysis.NewsSummary.Sentiment))
 	sb.WriteString(fmt.Sprintf("Impact: %s\n\n", analysis.NewsSummary.Impact))
 
-	// Key Levels
-	sb.WriteString("🎯 <b>Key Levels:</b>\n")
-	sb.WriteString(fmt.Sprintf("Support: $%.2f | Resistance: $%.2f\n", analysis.TechnicalAnalysis.SupportLevel, analysis.TechnicalAnalysis.ResistanceLevel))
-	if len(analysis.TechnicalAnalysis.KeySupportLevels) > 0 {
-		sb.WriteString("Key Supports: ")
-		for i, level := range analysis.TechnicalAnalysis.KeySupportLevels {
-			if i > 0 {
-				sb.WriteString(", ")
-			}
-			sb.WriteString(fmt.Sprintf("$%.2f", level))
+	sb.WriteString("🗞 **Key Issues:**\n")
+	if len(analysis.NewsSummary.KeyIssues) > 0 {
+		for _, issue := range analysis.NewsSummary.KeyIssues {
+			sb.WriteString(fmt.Sprintf("• %s\n", utils.CapitalizeSentence(issue)))
 		}
-		sb.WriteString("\n")
-	}
-	if len(analysis.TechnicalAnalysis.KeyResistanceLevels) > 0 {
-		sb.WriteString("Key Resistances: ")
-		for i, level := range analysis.TechnicalAnalysis.KeyResistanceLevels {
-			if i > 0 {
-				sb.WriteString(", ")
-			}
-			sb.WriteString(fmt.Sprintf("$%.2f", level))
-		}
-		sb.WriteString("\n")
 	}
 	sb.WriteString("\n")
 
 	// Recommendation
-	sb.WriteString("💡 <b>Recommendation:</b>\n")
-	sb.WriteString(fmt.Sprintf("Action: <b>%s</b>\n", analysis.Recommendation.Action))
-
-	// Only show buy-related information when action is BUY
-	if analysis.Recommendation.Action == "BUY" {
-		if analysis.Recommendation.BuyPrice > 0 {
-			sb.WriteString(fmt.Sprintf("Buy Price: $%.2f\n", analysis.Recommendation.BuyPrice))
-		}
-		if analysis.Recommendation.TargetPrice > 0 {
-			sb.WriteString(fmt.Sprintf("Target Price: $%.2f\n", analysis.Recommendation.TargetPrice))
-		}
-		if analysis.Recommendation.CutLoss > 0 {
-			sb.WriteString(fmt.Sprintf("Stop Loss: $%.2f\n", analysis.Recommendation.CutLoss))
-		}
-		if analysis.MaxHoldingPeriodDays > 0 {
-			sb.WriteString(fmt.Sprintf("Max Holding Period: %d days\n", analysis.MaxHoldingPeriodDays))
-		}
-	}
-
-	sb.WriteString(fmt.Sprintf("Confidence: %d%%\n\n", analysis.Recommendation.ConfidenceLevel))
-
-	// Risk Analysis
-	sb.WriteString("⚠️ <b>Risk Analysis:</b>\n")
-	sb.WriteString(fmt.Sprintf("Risk Level: %s\n", analysis.RiskLevel))
-	sb.WriteString(fmt.Sprintf("Potential Profit: %.2f%%\n", analysis.Recommendation.RiskRewardAnalysis.PotentialProfitPercentage))
-	sb.WriteString(fmt.Sprintf("Potential Loss: %.2f%%\n", analysis.Recommendation.RiskRewardAnalysis.PotentialLossPercentage))
-	sb.WriteString(fmt.Sprintf("Risk/Reward Ratio: %.2f\n", analysis.Recommendation.RiskRewardAnalysis.RiskRewardRatio))
-	sb.WriteString(fmt.Sprintf("Success Probability: %d%%\n\n", analysis.Recommendation.RiskRewardAnalysis.SuccessProbability))
-
-	// Technical Summary
-	if analysis.TechnicalSummary.OverallSignal != "" {
-		sb.WriteString("📋 <b>Summary:</b>\n")
-		sb.WriteString(fmt.Sprintf("Overall Signal: %s\n", analysis.TechnicalSummary.OverallSignal))
-		sb.WriteString(fmt.Sprintf("Volume Support: %s\n", analysis.TechnicalSummary.VolumeSupport))
-		sb.WriteString(fmt.Sprintf("Confidence Level: %d%%\n", analysis.TechnicalSummary.ConfidenceLevel))
-
-		if len(analysis.TechnicalSummary.KeyInsights) > 0 {
-			sb.WriteString("Key Insights:\n")
-			for _, insight := range analysis.TechnicalSummary.KeyInsights {
-				sb.WriteString(fmt.Sprintf("• %s\n", insight))
-			}
-		}
-
-		if len(analysis.NewsSummary.KeyIssues) > 0 {
-			for _, issue := range analysis.NewsSummary.KeyIssues {
-				sb.WriteString(fmt.Sprintf("• %s\n", issue))
-			}
-		}
-		sb.WriteString("\n")
-	}
-
+	sb.WriteString("💡 **Recommendation:**\n")
+	sb.WriteString(fmt.Sprintf("• 💵 Buy Price: $%.2f\n", analysis.Recommendation.BuyPrice))
+	sb.WriteString(fmt.Sprintf("• 🎯 Target Price: $%.2f\n", analysis.Recommendation.TargetPrice))
+	sb.WriteString(fmt.Sprintf("• 🛡 Stop Loss: $%.2f\n", analysis.Recommendation.CutLoss))
+	sb.WriteString(fmt.Sprintf("• 🔁 Risk/Reward Ratio: %.2f\n", analysis.Recommendation.RiskRewardRatio))
+	sb.WriteString(fmt.Sprintf("• 📊 Confidence: %d%%\n\n", analysis.Recommendation.ConfidenceLevel))
 	// Reasoning
-	sb.WriteString("🧠 <b>Reasoning:</b>\n")
-	sb.WriteString(analysis.Recommendation.Reasoning)
+	sb.WriteString(fmt.Sprintf("🧠 **Reasoning:**\n %s\n\n", analysis.Recommendation.Reasoning))
 
 	return sb.String()
 }
@@ -731,11 +679,12 @@ func (t *TelegramBotService) showProgressBarWithChannel(
 }
 
 func (t *TelegramBotService) formatMessageBuyList(index int, analysis *models.IndividualAnalysisResponse) *strings.Builder {
-
+	profitPercentage := analysis.Recommendation.TargetPrice / analysis.Recommendation.BuyPrice * 100
 	sb := &strings.Builder{}
 	sb.WriteString(fmt.Sprintf("\n• `$%s`\n", analysis.Symbol))
+	sb.WriteString(fmt.Sprintf("   💵 Buy: %d\n", int(analysis.Recommendation.BuyPrice)))
 	sb.WriteString(fmt.Sprintf("   🎯 TP: %d  🛡 SL: %d\n", int(analysis.Recommendation.TargetPrice), int(analysis.Recommendation.CutLoss)))
-	sb.WriteString(fmt.Sprintf("   🔁 RR: %.1f   💰 Profit: +%.1f%%", analysis.Recommendation.RiskRewardAnalysis.RiskRewardRatio, analysis.Recommendation.RiskRewardAnalysis.PotentialProfitPercentage))
+	sb.WriteString(fmt.Sprintf("   🔁 RR: %.1f   💰 Profit: +%.1f%%", analysis.Recommendation.RiskRewardRatio, profitPercentage))
 
 	return sb
 

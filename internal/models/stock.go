@@ -4,7 +4,14 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
+)
+
+var (
+	RedisStreamSchedulerTaskExecution = "schedule.task.execution"
+	RedisStreamStockAnalyzer          = "stock.analyzer"
+	RedisStreamStockPositionMonitor   = "stock.position.monitor"
 )
 
 type StockEntity struct {
@@ -139,4 +146,40 @@ type StockNewsQueryParam struct {
 	Limit            int      `json:"limit"`
 	MaxNewsAgeInDays int      `json:"max_news_age_in_days"`
 	PriorityDomains  []string `json:"priority_domains"`
+}
+
+type StockSignalEntity struct {
+	ID              int64          `json:"id"`
+	StockCode       string         `json:"stock_code"`
+	Signal          string         `json:"signal"`
+	ConfidenceScore float64        `json:"confidence_score"`
+	TechnicalScore  int            `json:"technical_score"`
+	NewsScore       float64        `json:"news_score"`
+	Interval        string         `json:"interval"`
+	Range           string         `json:"range"`
+	Data            datatypes.JSON `gorm:"type:jsonb"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `json:"deleted_at"`
+}
+
+func (StockSignalEntity) TableName() string {
+	return "stock_signals"
+}
+
+type GetStockBuySignalParam struct {
+	Signal      string                `json:"signal"`
+	Interval    string                `json:"interval"`
+	Range       string                `json:"range"`
+	After       time.Time             `json:"after"`
+	StockCode   string                `json:"stock_code"`
+	ReqAnalyzer *RequestStockAnalyzer `json:"request_analyzer"`
+}
+
+type RequestStockAnalyzer struct {
+	Interval   string `json:"interval"`
+	StockCode  string `json:"stock_code"`
+	Range      string `json:"range"`
+	TelegramID int64  `json:"telegram_id"`
+	NotifyUser bool   `json:"notify_user"`
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"golang-swing-trading-signal/pkg/postgres"
+	"golang-swing-trading-signal/pkg/redis"
 	"log"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ type Config struct {
 	Telegram TelegramConfig     `mapstructure:"telegram"`
 	Database postgres.Config    `mapstructure:"database"`
 	Log      LogConfig          `mapstructure:"log"`
+	Redis    redis.Config       `mapstructure:"redis"`
 }
 
 type LogConfig struct {
@@ -133,6 +135,13 @@ func LoadConfig() (*Config, error) {
 			MaxOpenConns:    viper.GetInt("DATABASE_MAX_OPEN_CONNS"),
 			ConnMaxLifetime: viper.GetString("DATABASE_CONN_MAX_LIFETIME"),
 			LogLevel:        viper.GetString("DATABASE_LOG_LEVEL"),
+		},
+		Redis: redis.Config{
+			Host:     viper.GetString("REDIS_HOST"),
+			Port:     viper.GetInt("REDIS_PORT"),
+			Password: viper.GetString("REDIS_PASSWORD"),
+			DB:       viper.GetInt("REDIS_DB"),
+			PoolSize: viper.GetInt("REDIS_POOL_SIZE"),
 		},
 	}
 

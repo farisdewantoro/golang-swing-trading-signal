@@ -47,29 +47,17 @@ type OHLCVAnalysis struct {
 	Explanation string  `json:"explanation"`
 }
 
-// Technical Analysis
 type TechnicalAnalysis struct {
-	Trend                  string    `json:"trend"`
-	ShortTermTrend         string    `json:"short_term_trend"`
-	MediumTermTrend        string    `json:"medium_term_trend"`
-	EMASignal              string    `json:"ema_signal"`
-	RSISignal              string    `json:"rsi_signal"`
-	MACDSignal             string    `json:"macd_signal"`
-	StochasticSignal       string    `json:"stochastic_signal"`
-	BollingerBandsPosition string    `json:"bollinger_bands_position"`
-	SupportLevel           float64   `json:"support_level"`
-	ResistanceLevel        float64   `json:"resistance_level"`
-	KeySupportLevels       []float64 `json:"key_support_levels"`
-	KeyResistanceLevels    []float64 `json:"key_resistance_levels"`
-	VolumeTrend            string    `json:"volume_trend"`
-	VolumeConfirmation     string    `json:"volume_confirmation"`
-	Momentum               string    `json:"momentum"`
-	CandlestickPattern     string    `json:"candlestick_pattern"`
-	MarketStructure        string    `json:"market_structure"`
-	TrendStrength          string    `json:"trend_strength"`
-	BreakoutPotential      string    `json:"breakout_potential"`
-	ConsolidationLevel     string    `json:"consolidation_level"`
-	TechnicalScore         int       `json:"technical_score"`
+	Trend                  string   `json:"trend"`
+	Momentum               string   `json:"momentum"`
+	EMASignal              string   `json:"ema_signal"`
+	RSISignal              string   `json:"rsi_signal"`
+	MACDSignal             string   `json:"macd_signal"`
+	BollingerBandsPosition string   `json:"bollinger_bands_position"`
+	SupportLevel           float64  `json:"support_level"`
+	ResistanceLevel        float64  `json:"resistance_level"`
+	TechnicalScore         int      `json:"technical_score"`
+	KeyInsights            []string `json:"key_insights"`
 }
 
 // Risk Reward Analysis
@@ -116,13 +104,13 @@ type ExitRecommendation struct {
 
 // Recommendation
 type Recommendation struct {
-	Action             string             `json:"action"`
-	BuyPrice           float64            `json:"buy_price,omitempty"`
-	TargetPrice        float64            `json:"target_price,omitempty"`
-	CutLoss            float64            `json:"cut_loss,omitempty"`
-	ConfidenceLevel    int                `json:"confidence_level"`
-	Reasoning          string             `json:"reasoning"`
-	RiskRewardAnalysis RiskRewardAnalysis `json:"risk_reward_analysis"`
+	Action          string  `json:"action"`
+	BuyPrice        float64 `json:"buy_price,omitempty"`
+	TargetPrice     float64 `json:"target_price,omitempty"`
+	CutLoss         float64 `json:"cut_loss,omitempty"`
+	ConfidenceLevel int     `json:"confidence_level"`
+	Reasoning       string  `json:"reasoning"`
+	RiskRewardRatio float64 `json:"risk_reward_ratio"`
 }
 
 // Position Recommendation
@@ -144,19 +132,12 @@ type PositionMetrics struct {
 	VolumeSupport           string  `json:"volume_support"`
 }
 
-// Individual Analysis Response
 type IndividualAnalysisResponse struct {
-	Symbol               string            `json:"symbol"`
-	AnalysisDate         time.Time         `json:"analysis_date"`
-	Signal               string            `json:"signal"`
-	DataInfo             DataInfo          `json:"data_info,omitempty"`
-	OHLCVAnalysis        OHLCVAnalysis     `json:"ohlcv_analysis,omitempty"`
-	TechnicalAnalysis    TechnicalAnalysis `json:"technical_analysis"`
-	Recommendation       Recommendation    `json:"recommendation"`
-	RiskLevel            string            `json:"risk_level"`
-	TechnicalSummary     TechnicalSummary  `json:"technical_summary"`
-	MaxHoldingPeriodDays int               `json:"max_holding_period_days,omitempty"`
-	NewsSummary          NewsSummary       `json:"news_summary,omitempty"`
+	Symbol            string            `json:"symbol"`
+	AnalysisDate      time.Time         `json:"analysis_date"`
+	TechnicalAnalysis TechnicalAnalysis `json:"technical_analysis"`
+	Recommendation    Recommendation    `json:"recommendation"`
+	NewsSummary       NewsSummary       `json:"news_summary,omitempty"`
 }
 
 // Data Information

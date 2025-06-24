@@ -2,11 +2,15 @@ package stocks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"golang-swing-trading-signal/internal/config"
 	"golang-swing-trading-signal/internal/models"
 	"golang-swing-trading-signal/internal/repository"
 	"golang-swing-trading-signal/internal/utils"
+	"golang-swing-trading-signal/pkg/redis"
+
+	goRedis "github.com/redis/go-redis/v9"
 
 	"github.com/sirupsen/logrus"
 )
@@ -21,6 +25,7 @@ type StockService interface {
 	GetByParam(ctx context.Context, param models.GetStocksParam) ([]models.StockEntity, error)
 	GetTopNews(ctx context.Context, param models.StockNewsQueryParam) ([]models.StockNewsEntity, error)
 	GetLastStockNewsSummary(ctx context.Context, age int, stockCode string) (*models.StockNewsSummaryEntity, error)
+	GetLatestStockSignal(ctx context.Context, param models.GetStockBuySignalParam) ([]models.StockSignalEntity, error)
 }
 
 type stockService struct {
@@ -32,9 +37,22 @@ type stockService struct {
 	userRepository             repository.UserRepository
 	unitOfWork                 repository.UnitOfWork
 	stockNewsRepository        repository.StocksNewsRepository
+	stockSignalRepository      repository.StockSignalRepository
+	redisClient                *redis.Client
 }
 
-func NewStockService(cfg *config.Config, stocksRepository repository.StocksRepository, stockNewsSummaryRepository repository.StockNewsSummaryRepository, stockPositionRepository repository.StockPositionRepository, userRepository repository.UserRepository, logger *logrus.Logger, unitOfWork repository.UnitOfWork, stockNewsRepository repository.StocksNewsRepository) StockService {
+func NewStockService(
+	cfg *config.Config,
+	stocksRepository repository.StocksRepository,
+	stockNewsSummaryRepository repository.StockNewsSummaryRepository,
+	stockPositionRepository repository.StockPositionRepository,
+	userRepository repository.UserRepository,
+	logger *logrus.Logger,
+	unitOfWork repository.UnitOfWork,
+	stockNewsRepository repository.StocksNewsRepository,
+	stockSignalRepository repository.StockSignalRepository,
+	redisClient *redis.Client,
+) StockService {
 	return &stockService{
 		cfg:                        cfg,
 		stocksRepository:           stocksRepository,
@@ -44,6 +62,8 @@ func NewStockService(cfg *config.Config, stocksRepository repository.StocksRepos
 		logger:                     logger,
 		unitOfWork:                 unitOfWork,
 		stockNewsRepository:        stockNewsRepository,
+		stockSignalRepository:      stockSignalRepository,
+		redisClient:                redisClient,
 	}
 }
 
@@ -61,6 +81,51 @@ func (s *stockService) GetTopNews(ctx context.Context, param models.StockNewsQue
 
 func (s *stockService) GetLastStockNewsSummary(ctx context.Context, age int, stockCode string) (*models.StockNewsSummaryEntity, error) {
 	return s.stockNewsSummaryRepository.GetLast(ctx, utils.TimeNowWIB().AddDate(0, 0, -age), stockCode)
+}
+
+func (s *stockService) GetLatestStockSignal(ctx context.Context, param models.GetStockBuySignalParam) ([]models.StockSignalEntity, error) {
+	result, err := s.stockSignalRepository.GetLatestSignal(ctx, param)
+	if err != nil {
+		s.logger.Error("failed to get latest stock signal", logrus.Fields{
+			"error": err,
+		})
+		return nil, fmt.Errorf("failed to get latest stock signal: %w", err)
+	}
+
+	if len(result) == 0 && param.ReqAnalyzer != nil {
+		param.ReqAnalyzer = &models.RequestStockAnalyzer{
+			Interval:   param.Interval,
+			StockCode:  param.StockCode,
+			Range:      param.Range,
+			TelegramID: param.ReqAnalyzer.TelegramID,
+			NotifyUser: param.ReqAnalyzer.NotifyUser,
+		}
+		s.RequestStockAnalyzer(ctx, param.ReqAnalyzer)
+	}
+
+	return result, nil
+}
+
+func (s *stockService) RequestStockAnalyzer(ctx context.Context, param *models.RequestStockAnalyzer) error {
+
+	streamDataJSON, err := json.Marshal(param)
+	if err != nil {
+		s.logger.Error("failed to parse json data request stock analyzer", logrus.Fields{
+			"error": err,
+		})
+		return err
+	}
+	if err := s.redisClient.XAdd(ctx, &goRedis.XAddArgs{
+		Stream: models.RedisStreamStockAnalyzer,
+		Values: map[string]interface{}{"payload": streamDataJSON},
+	}).Err(); err != nil {
+		s.logger.Error("failed to send redis stream stock analyzer", logrus.Fields{
+			"error": err,
+		})
+		return err
+	}
+
+	return nil
 }
 
 func (s *stockService) GetStockPosition(ctx context.Context, param models.StockPositionQueryParam) ([]models.StockPositionEntity, error) {

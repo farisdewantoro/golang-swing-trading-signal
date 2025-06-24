@@ -2,8 +2,10 @@ package telegram_bot
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"golang-swing-trading-signal/internal/models"
 	"golang-swing-trading-signal/internal/utils"
 	"strings"
 	"sync"
@@ -84,34 +86,64 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 				return
 			}
 
-			t.logger.Info("Buy list - Analisa saham", logrus.Fields{
+			fields := logrus.Fields{
 				"symbol": stock.Code,
 				"index":  idx + 1,
 				"total":  len(stocks),
+			}
+
+			t.logger.Info("Buy list - Analisa saham", fields)
+			intervalTime, err := utils.GetTimeBefore(interval)
+			if err != nil {
+				t.logger.WithError(err).WithField("symbol", stock.Code).Error("Buy list - Gagal parse data interval duration")
+				buyListResultMsg.WriteString(commonMessageInternalError)
+				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
+				continue
+			}
+			stockSignals, err := t.stockService.GetLatestStockSignal(newCtx, models.GetStockBuySignalParam{
+				Interval:  interval,
+				Range:     rng,
+				After:     intervalTime,
+				StockCode: stock.Code,
+				ReqAnalyzer: &models.RequestStockAnalyzer{
+					TelegramID: c.Sender().ID,
+					NotifyUser: false,
+				},
 			})
 
-			analysis, err := t.analyzer.AnalyzeStock(newCtx, stock.Code, interval, rng)
 			if err != nil {
-				t.logger.WithError(err).WithField("symbol", stock.Code).Error("Failed to analyze stock")
-				buyListResultMsg.WriteString(fmt.Sprintf("*%d. %s* - ❌ Gagal analisa\n", idx+1, stock.Code))
+				t.logger.WithError(err).WithField("symbol", stock.Code).Error("Buy list - Gagal mengambil data")
+				buyListResultMsg.WriteString(fmt.Sprintf("*%d. %s* - ❌ Gagal mengambil data\n", idx+1, stock.Code))
 				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
 
-			if strings.ToUpper(analysis.Signal) != "BUY" {
-				t.logger.Debug("Buy list - Tidak direkomendasikan untuk BUY", logrus.Fields{
-					"symbol": stock.Code,
-					"index":  idx + 1,
-					"total":  len(stocks),
-				})
+			if len(stockSignals) == 0 {
+				t.logger.Warn("Buy list - Tidak ditemukan sinyal BUY", fields)
+				buyListResultMsg.WriteString(fmt.Sprintf("*%d. %s* - ❌ Saat ini data tidak tersedia\n", idx+1, stock.Code))
 				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
+
+			stockSignal := stockSignals[0]
+
+			if stockSignal.Signal != "BUY" {
+				t.logger.Debug("Buy list - Tidak direkomendasikan untuk BUY", fields)
+				continue
+			}
+
 			buyCount++
 			if buyCount == 1 {
 				msgHeader.WriteString("\n📈 Ditemukan sinyal BUY:")
 			}
-			newBuyListMsg := t.formatMessageBuyList(buyCount, analysis)
+			var analysis models.IndividualAnalysisResponse
+			if err := json.Unmarshal([]byte(stockSignal.Data), &analysis); err != nil {
+				t.logger.WithError(err).WithField("symbol", stock.Code).Error("Failed to unmarshal analysis")
+				buyListResultMsg.WriteString(fmt.Sprintf("*%d. %s* - ❌ Gagal parse data\n", idx+1, stock.Code))
+				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
+				continue
+			}
+			newBuyListMsg := t.formatMessageBuyList(buyCount, &analysis)
 
 			buyListResultMsg.WriteString(newBuyListMsg.String())
 			progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}

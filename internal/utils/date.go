@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -58,4 +59,31 @@ func MustParseDate(strTime string) time.Time {
 	date, _ := time.Parse("2006-01-02", strTime)
 
 	return date
+}
+
+// GetTimeBefore menerima string seperti "1d", "3m", "1h" dan mengembalikan time sebelum x
+func GetTimeBefore(input string) (time.Time, error) {
+	if len(input) < 2 {
+		return time.Time{}, fmt.Errorf("invalid input")
+	}
+
+	unit := input[len(input)-1:]  // ambil 1 huruf terakhir (d, m, h)
+	value := input[:len(input)-1] // ambil angka di depannya
+	num, err := strconv.Atoi(value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid number: %w", err)
+	}
+
+	now := time.Now()
+
+	switch unit {
+	case "d":
+		return now.AddDate(0, 0, -num), nil // kurangi hari
+	case "m":
+		return now.AddDate(0, -num, 0), nil // kurangi bulan
+	case "h":
+		return now.Add(-time.Duration(num) * time.Hour), nil // kurangi jam
+	default:
+		return time.Time{}, fmt.Errorf("unsupported unit: %s", unit)
+	}
 }

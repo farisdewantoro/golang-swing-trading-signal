@@ -3,6 +3,7 @@ package utils
 import (
 	"net/url"
 	"strings"
+	"unicode"
 )
 
 func TruncateTitle(title string, max int) string {
@@ -41,4 +42,15 @@ func SummarizeIssues(issues []string, max int) string {
 		issues = issues[:max]
 	}
 	return strings.Join(issues, ", ")
+}
+
+func CapitalizeSentence(input string) string {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return ""
+	}
+
+	runes := []rune(input)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }

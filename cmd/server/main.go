@@ -24,6 +24,7 @@ import (
 	"golang-swing-trading-signal/internal/services/yahoo_finance"
 	"golang-swing-trading-signal/pkg/postgres"
 	"golang-swing-trading-signal/pkg/ratelimit"
+	"golang-swing-trading-signal/pkg/redis"
 )
 
 func main() {
@@ -87,11 +88,16 @@ func main() {
 	stockRepo := repository.NewStocksRepository(db.DB)
 	userRepo := repository.NewUserRepository(db.DB)
 	unitOfWork := repository.NewUnitOfWork(db.DB)
+	stockSignalRepo := repository.NewStockSignalRepository(db.DB)
 	genClient, err := genai.NewClient(context.Background(), &genai.ClientConfig{
 		APIKey: cfg.Gemini.APIKey,
 	})
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to initialize Gemini client")
+	}
+	redisClient, err := redis.NewClient(cfg.Redis)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to initialize Redis client")
 	}
 
 	// Initialize services
@@ -121,7 +127,7 @@ func main() {
 	telegramRateLimiter := ratelimit.NewTelegramRateLimiter(&cfg.Telegram, logger, bot)
 	telegramRateLimiter.StartCleanupExpired(ctxCancel)
 
-	stockService := stocks.NewStockService(cfg, stockRepo, stockNewsSummaryRepo, stockPositionRepo, userRepo, logger, unitOfWork, stockNewsRepo)
+	stockService := stocks.NewStockService(cfg, stockRepo, stockNewsSummaryRepo, stockPositionRepo, userRepo, logger, unitOfWork, stockNewsRepo, stockSignalRepo, redisClient)
 	telegramService := telegram_bot.NewTelegramBotService(&cfg.Telegram, ctxCancel, &cfg.Trading, logger, analyzer, stockService, bot, telegramRateLimiter, router)
 
 	// Initialize handlers
