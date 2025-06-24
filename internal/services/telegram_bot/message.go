@@ -679,7 +679,7 @@ func (t *TelegramBotService) showProgressBarWithChannel(
 }
 
 func (t *TelegramBotService) formatMessageBuyList(index int, analysis *models.IndividualAnalysisResponse) *strings.Builder {
-	profitPercentage := analysis.Recommendation.TargetPrice / analysis.Recommendation.BuyPrice * 100
+	profitPercentage := ((analysis.Recommendation.TargetPrice - analysis.Recommendation.BuyPrice) / analysis.Recommendation.BuyPrice) * 100
 	sb := &strings.Builder{}
 	sb.WriteString(fmt.Sprintf("\n• `$%s`\n", analysis.Symbol))
 	sb.WriteString(fmt.Sprintf("   💵 Buy: %d\n", int(analysis.Recommendation.BuyPrice)))
