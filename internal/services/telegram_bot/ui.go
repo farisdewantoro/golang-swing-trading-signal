@@ -8,7 +8,6 @@ var (
 	btnSetPositionAlertPriceNo             telebot.Btn = telebot.Btn{Text: "❌ Tidak", Unique: "btn_set_position_alert_price_no", Data: "false"}
 	btnSetPositionAlertMonitorYes          telebot.Btn = telebot.Btn{Text: "✅ Ya", Unique: "btn_set_position_alert_monitor_yes", Data: "true"}
 	btnSetPositionAlertMonitorNo           telebot.Btn = telebot.Btn{Text: "❌ Tidak", Unique: "btn_set_position_alert_monitor_no", Data: "false"}
-	btnStockMonitorAll                     telebot.Btn = telebot.Btn{Text: "📊 Lihat Semua Saham", Unique: "btn_stock_monitor_all", Data: "all"}
 	btnStockPositionMonitoring             telebot.Btn = telebot.Btn{Unique: "btn_stock_position_monitoring"}
 	btnInputTimeFrameStockPositionAnalysis telebot.Btn = telebot.Btn{Unique: "btn_input_time_frame_stock_position"}
 	btnInputTimeFrameStockAnalysis         telebot.Btn = telebot.Btn{Unique: "btn_input_time_frame_stock_analysis"}

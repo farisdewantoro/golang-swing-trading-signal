@@ -87,3 +87,14 @@ func GetTimeBefore(input string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("unsupported unit: %s", unit)
 	}
 }
+
+func RemainingDays(maxHoldingDays int, buyTime time.Time) int {
+	// Hitung waktu expired
+	expiredTime := buyTime.AddDate(0, 0, maxHoldingDays)
+
+	// Hitung selisih hari dari sekarang
+	now := time.Now()
+	remaining := int(expiredTime.Sub(now).Hours() / 24)
+
+	return remaining
+}

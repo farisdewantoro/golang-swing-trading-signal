@@ -222,29 +222,3 @@ func (t *TelegramBotService) SendPositionMonitoringNotification(position *models
 	t.logger.WithField("symbol", position.Symbol).Info("Position monitoring notification sent")
 	return nil
 }
-
-func (t *TelegramBotService) SendBulkPositionMonitoringNotification(positions []models.PositionMonitoringResponse) error {
-	if t.config.ChatID == "" {
-		t.logger.Warn("Telegram chat ID not configured, skipping notification")
-		return nil
-	}
-
-	chatID, err := strconv.ParseInt(t.config.ChatID, 10, 64)
-	if err != nil {
-		return fmt.Errorf("invalid chat ID: %w", err)
-	}
-
-	messages := t.FormatBulkPositionMonitoringMessage(positions)
-
-	for _, message := range messages {
-		_, err = t.bot.Send(&telebot.Chat{ID: chatID}, message, &telebot.SendOptions{
-			ParseMode: telebot.ModeHTML,
-		})
-		if err != nil {
-			t.logger.WithError(err).Error("Failed to send position monitoring notification")
-			return err
-		}
-	}
-
-	return nil
-}

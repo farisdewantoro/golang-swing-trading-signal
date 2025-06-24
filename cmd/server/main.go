@@ -89,6 +89,7 @@ func main() {
 	userRepo := repository.NewUserRepository(db.DB)
 	unitOfWork := repository.NewUnitOfWork(db.DB)
 	stockSignalRepo := repository.NewStockSignalRepository(db.DB)
+	stockPositionMonitoringRepo := repository.NewStockPositionMonitoringRepository(db.DB)
 	genClient, err := genai.NewClient(context.Background(), &genai.ClientConfig{
 		APIKey: cfg.Gemini.APIKey,
 	})
@@ -127,7 +128,7 @@ func main() {
 	telegramRateLimiter := ratelimit.NewTelegramRateLimiter(&cfg.Telegram, logger, bot)
 	telegramRateLimiter.StartCleanupExpired(ctxCancel)
 
-	stockService := stocks.NewStockService(cfg, stockRepo, stockNewsSummaryRepo, stockPositionRepo, userRepo, logger, unitOfWork, stockNewsRepo, stockSignalRepo, redisClient)
+	stockService := stocks.NewStockService(cfg, stockRepo, stockNewsSummaryRepo, stockPositionRepo, userRepo, logger, unitOfWork, stockNewsRepo, stockSignalRepo, stockPositionMonitoringRepo, redisClient)
 	telegramService := telegram_bot.NewTelegramBotService(&cfg.Telegram, ctxCancel, &cfg.Trading, logger, analyzer, stockService, bot, telegramRateLimiter, router)
 
 	// Initialize handlers

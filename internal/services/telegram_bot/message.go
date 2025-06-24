@@ -16,22 +16,38 @@ import (
 func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.PositionMonitoringResponse) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("📊 <b>Position Update: %s</b>\n", position.Symbol))
-	sb.WriteString(fmt.Sprintf("💰 Buy: $%.2f | Current: $%.2f | P&L: %.2f%%\n", position.BuyPrice, position.CurrentPrice, position.PositionMetrics.UnrealizedPnLPercentage))
-	sb.WriteString(fmt.Sprintf("📈 Age: %d days | Remaining: %d days\n\n", position.PositionAgeDays, position.PositionMetrics.DaysRemaining))
+	unrealizedPnLPercentage := ((position.MarketPrice - position.BuyPrice) / position.BuyPrice) * 100
+	unrealizedPnLPercentageStr := fmt.Sprintf("(+%.2f)", unrealizedPnLPercentage)
 
-	// Recommendation
-	sb.WriteString("💡 <b>Recommendation:</b>\n")
-	sb.WriteString(fmt.Sprintf("Action: <b>%s</b>\n", position.Recommendation.Action))
-	sb.WriteString(fmt.Sprintf("Reasoning: %s\n\n", position.Recommendation.Reasoning))
+	if unrealizedPnLPercentage < 0 {
+		unrealizedPnLPercentageStr = fmt.Sprintf("(-%.2f)", unrealizedPnLPercentage)
+	}
+
+	daysRemaining := utils.RemainingDays(position.MaxHoldingPeriodDays, position.BuyDate)
+	ageDays := int(time.Since(position.BuyDate).Hours() / 24)
+
+	sb.WriteString(fmt.Sprintf("📊 **Position Update: %s**\n", position.Symbol))
+	sb.WriteString(fmt.Sprintf("💰 Buy: $%.2f | Current: $%.2f %s\n", position.BuyPrice, position.MarketPrice, unrealizedPnLPercentageStr))
+	sb.WriteString(fmt.Sprintf("📈 Age: %d days | Remaining: %d days\n\n", ageDays, daysRemaining))
 
 	// Technical Analysis
-	sb.WriteString("🔧 <b>Technical Analysis:</b>\n")
-	sb.WriteString(fmt.Sprintf("Trend: %s\n", position.Recommendation.TechnicalAnalysis.Trend))
-	sb.WriteString(fmt.Sprintf("EMA: %s | RSI: %s\n", position.Recommendation.TechnicalAnalysis.EMASignal, position.Recommendation.TechnicalAnalysis.RSISignal))
-	sb.WriteString(fmt.Sprintf("MACD: %s\n", position.Recommendation.TechnicalAnalysis.MACDSignal))
-	sb.WriteString(fmt.Sprintf("Support: $%.2f | Resistance: $%.2f\n", position.Recommendation.TechnicalAnalysis.SupportLevel, position.Recommendation.TechnicalAnalysis.ResistanceLevel))
-	sb.WriteString(fmt.Sprintf("Technical Score: %d/100\n\n", position.Recommendation.TechnicalAnalysis.TechnicalScore))
+	sb.WriteString("🔧 **Technical Analysis:**\n")
+	sb.WriteString(fmt.Sprintf("• Trend: %s \n", position.TechnicalAnalysis.Trend))
+	sb.WriteString(fmt.Sprintf("• EMA Signal: %s\n", position.TechnicalAnalysis.EMASignal))
+	sb.WriteString(fmt.Sprintf("• RSI: %s\n", position.TechnicalAnalysis.RSISignal))
+	sb.WriteString(fmt.Sprintf("• MACD: %s\n", position.TechnicalAnalysis.MACDSignal))
+	sb.WriteString(fmt.Sprintf("• Momentum: %s\n", position.TechnicalAnalysis.Momentum))
+	sb.WriteString(fmt.Sprintf("• Bollinger Bands Position: %s\n", position.TechnicalAnalysis.BollingerBandsPosition))
+	sb.WriteString(fmt.Sprintf("• Support Level: $%.2f\n", position.TechnicalAnalysis.SupportLevel))
+	sb.WriteString(fmt.Sprintf("• Resistance Level: $%.2f\n", position.TechnicalAnalysis.ResistanceLevel))
+	sb.WriteString(fmt.Sprintf("• Technical Score: %d/100\n", position.TechnicalAnalysis.TechnicalScore))
+	if len(position.TechnicalAnalysis.KeyInsights) > 0 {
+		sb.WriteString("\n📌 **Key Insights:**\n")
+		for _, insight := range position.TechnicalAnalysis.KeyInsights {
+			sb.WriteString(fmt.Sprintf("• %s\n", utils.CapitalizeSentence(insight)))
+		}
+		sb.WriteString("\n")
+	}
 
 	// News Summary
 	sb.WriteString("📰 <b>News Summary:</b>\n")
@@ -39,199 +55,28 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 	sb.WriteString(fmt.Sprintf("Sentiment: %s\n", position.NewsSummary.Sentiment))
 	sb.WriteString(fmt.Sprintf("Impact: %s\n\n", position.NewsSummary.Impact))
 
-	// Risk Analysis
-	sb.WriteString("⚠️ <b>Risk Analysis:</b>\n")
-	sb.WriteString(fmt.Sprintf("Current Profit: %.2f%%\n", position.Recommendation.RiskRewardAnalysis.CurrentProfitPercentage))
-	sb.WriteString(fmt.Sprintf("Remaining Potential: %.2f%%\n", position.Recommendation.RiskRewardAnalysis.RemainingPotentialProfitPercentage))
-	sb.WriteString(fmt.Sprintf("Risk/Reward Ratio: %.2f\n", position.Recommendation.RiskRewardAnalysis.RiskRewardRatio))
-	sb.WriteString(fmt.Sprintf("Success Probability: %d%%\n\n", position.Recommendation.RiskRewardAnalysis.SuccessProbability))
-
-	// Exit Strategy
-	if position.Recommendation.RiskRewardAnalysis.ExitRecommendation.TargetExitPrice > 0 {
-		sb.WriteString("🎯 <b>Exit Strategy:</b>\n")
-		sb.WriteString(fmt.Sprintf("Target: $%.2f | Stop Loss: $%.2f\n",
-			position.Recommendation.RiskRewardAnalysis.ExitRecommendation.TargetExitPrice,
-			position.Recommendation.RiskRewardAnalysis.ExitRecommendation.StopLossPrice))
-		if position.Recommendation.RiskRewardAnalysis.ExitRecommendation.TimeBasedExit != "" {
-			if t, err := time.Parse(time.RFC3339, position.Recommendation.RiskRewardAnalysis.ExitRecommendation.TimeBasedExit); err == nil {
-				sb.WriteString(fmt.Sprintf("Time Exit: %s\n", t.Format("2006-01-02 15:04:05")))
-			}
-		}
-		if len(position.Recommendation.RiskRewardAnalysis.ExitRecommendation.ExitConditions) > 0 {
-			sb.WriteString("Exit Conditions:\n")
-			for i, condition := range position.Recommendation.RiskRewardAnalysis.ExitRecommendation.ExitConditions {
-				if i < 2 { // Limit to 2 most important conditions
-					sb.WriteString(fmt.Sprintf("• %s\n", condition))
-				}
-			}
-		}
-		sb.WriteString("\n")
-	}
-
-	// Summary
-	if position.TechnicalSummary.OverallSignal != "" {
-		sb.WriteString("📋 <b>Summary:</b>\n")
-		sb.WriteString(fmt.Sprintf("Signal: %s | Confidence: %d%%\n", position.TechnicalSummary.OverallSignal, position.TechnicalSummary.ConfidenceLevel))
-		if len(position.TechnicalSummary.KeyInsights) > 0 {
-			sb.WriteString("Key Insights:\n")
-			for _, insight := range position.TechnicalSummary.KeyInsights {
-				sb.WriteString(fmt.Sprintf("• %s\n", insight))
-
-			}
-		}
-
-		if len(position.NewsSummary.KeyIssues) > 0 {
-			for _, issue := range position.NewsSummary.KeyIssues {
-				sb.WriteString(fmt.Sprintf("• %s\n", issue))
-
-			}
+	sb.WriteString("🗞 **Key Issues:**\n")
+	if len(position.NewsSummary.KeyIssues) > 0 {
+		for _, issue := range position.NewsSummary.KeyIssues {
+			sb.WriteString(fmt.Sprintf("• %s\n", utils.CapitalizeSentence(issue)))
 		}
 	}
+	sb.WriteString("\n")
 
-	return sb.String()
-}
-
-func (t *TelegramBotService) FormatBulkPositionMonitoringMessage(positions []models.PositionMonitoringResponse) []string {
-	const maxLen = 4090
-	var messages []string
-	var currentMessage strings.Builder
-	part := 1
-
-	now := utils.TimeNowWIB()
-	// Helper function to start a new message part with the correct header
-	startNewPart := func() {
-		currentMessage.Reset()
-		var header string
-		if part == 1 {
-			header = "📊 <b>Position Update Harian </b>\n"
-		} else {
-			header = fmt.Sprintf("---*Lanjutan Position Update Harian Part %d*---\n\n", part)
+	// Recommendation
+	sb.WriteString("💡 **Recommendation:**\n")
+	sb.WriteString(fmt.Sprintf("• 🎯 Target Price: $%.2f\n", position.Recommendation.TargetPrice))
+	sb.WriteString(fmt.Sprintf("• 🛡 Stop Loss: $%.2f\n", position.Recommendation.CutLoss))
+	sb.WriteString(fmt.Sprintf("• 🔁 Risk/Reward Ratio: %.2f\n", position.Recommendation.RiskRewardRatio))
+	sb.WriteString(fmt.Sprintf("• 📊 Confidence: %d%%\n\n", position.Recommendation.ConfidenceLevel))
+	// Reasoning
+	sb.WriteString(fmt.Sprintf("🧠 **Reasoning:**\n %s\n\n", position.Recommendation.ExitReasoning))
+	if len(position.Recommendation.ExitConditions) > 0 {
+		sb.WriteString("💡 **Exit Conditions:**\n")
+		for _, condition := range position.Recommendation.ExitConditions {
+			sb.WriteString(fmt.Sprintf("• %s\n", condition))
 		}
-		currentMessage.WriteString(header)
-		currentMessage.WriteString(utils.PrettyDate(now) + "\n\n")
 	}
-
-	// Start the first part
-	startNewPart()
-
-	for _, position := range positions {
-
-		var entryBuilder strings.Builder
-		entryBuilder.WriteString(fmt.Sprintf("💼 <b>$%s</b>\n", position.Symbol))
-		entryBuilder.WriteString(fmt.Sprintf("💰 Buy: $%.2f | Current: $%.2f | P&L: %.2f%%\n", position.BuyPrice, position.CurrentPrice, position.PositionMetrics.UnrealizedPnLPercentage))
-		entryBuilder.WriteString(fmt.Sprintf("📈 Age: %d days | Remaining: %d days\n", position.PositionAgeDays, position.PositionMetrics.DaysRemaining))
-		entryBuilder.WriteString(fmt.Sprintf("🎯 TP: $%.2f | SL: $%.2f\n",
-			position.Recommendation.RiskRewardAnalysis.ExitRecommendation.TargetExitPrice,
-			position.Recommendation.RiskRewardAnalysis.ExitRecommendation.StopLossPrice))
-		// Suggested Action with icon
-		var actionIcon string
-		switch strings.ToLower(position.Recommendation.Action) {
-		case "buy":
-			actionIcon = "🟢"
-		case "sell":
-			actionIcon = "🔴"
-		default: // Hold, Neutral
-			actionIcon = "🟡"
-		}
-
-		entryBuilder.WriteString(fmt.Sprintf("📌 Action: %s %s\n", actionIcon, position.Recommendation.Action))
-		entryBuilder.WriteString(fmt.Sprintf("🧠 Success Probability: %d%%\n", position.Recommendation.RiskRewardAnalysis.SuccessProbability))
-		entryBuilder.WriteString(fmt.Sprintf("🔍 Reasoning: %s\n\n\n", position.Recommendation.Reasoning))
-
-		// Check if adding the new entry exceeds the max length. We assume a single entry doesn't exceed the limit.
-		if currentMessage.Len()+len(entryBuilder.String()) > maxLen {
-			// Finalize the current message and add it to the slice
-			messages = append(messages, currentMessage.String())
-
-			// Start a new part
-			part++
-			startNewPart()
-		}
-
-		// Add the entry to the current message
-		currentMessage.WriteString(entryBuilder.String())
-	}
-
-	// Add the final message part to the slice
-	messages = append(messages, currentMessage.String())
-
-	return messages
-}
-
-// formatDuration formats duration in a human-readable format
-func formatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%.0f seconds", d.Seconds())
-	}
-	minutes := int(d.Minutes())
-	seconds := int(d.Seconds()) % 60
-	return fmt.Sprintf("%d minutes %d seconds", minutes, seconds)
-}
-
-// FormatBuyListSummaryMessage formats the buy list analysis summary for Telegram
-func (t *TelegramBotService) FormatBuyListSummaryMessage(summary *models.SummaryAnalysisResponse, analysisTime time.Duration) string {
-	var sb strings.Builder
-
-	sb.WriteString("📊 <b>BUY LIST ANALYSIS SUMMARY</b>\n")
-	sb.WriteString(fmt.Sprintf("📅 Date: %s\n", summary.AnalysisDate.Format("2006-01-02 15:04:05")))
-	sb.WriteString(fmt.Sprintf("⏱️ Analysis Time: %s\n", formatDuration(analysisTime)))
-	sb.WriteString(fmt.Sprintf("📈 Total Stocks: %d | Buy: %d | Hold: %d\n\n", summary.TotalStocks, summary.BuyCount, summary.HoldCount))
-
-	sb.WriteString("📋 <b>MARKET OVERVIEW:</b>\n")
-	sb.WriteString(fmt.Sprintf("Best Opportunity: %s\n", summary.Summary.BestOpportunity))
-	sb.WriteString(fmt.Sprintf("Worst Opportunity: %s\n\n", summary.Summary.WorstOpportunity))
-
-	// Buy List Summary
-	if len(summary.BuyList) > 0 {
-		// Show top 3 stocks with highest confidence
-		sb.WriteString("🏆 <b>TOP RECOMMENDATIONS:</b>\n")
-		for i, stock := range summary.BuyList {
-			if i >= 3 { // Limit to top 3
-				break
-			}
-			sb.WriteString(fmt.Sprintf("%d. <b>%s</b> - $%.2f (Confidence: %d%%)\n", i+1, stock.Symbol, stock.CurrentPrice, stock.Confidence))
-		}
-		sb.WriteString("\n📋 Detailed list will be sent in the next message...\n")
-	} else {
-		sb.WriteString("🟢 <b>RECOMMENDED BUY LIST:</b> No stocks recommended for buying at this time\n\n")
-	}
-
-	return sb.String()
-}
-
-// FormatDetailedStockListMessage formats the detailed stock list for Telegram
-func (t *TelegramBotService) FormatDetailedStockListMessage(summary *models.SummaryAnalysisResponse) string {
-	var sb strings.Builder
-
-	sb.WriteString("📋 <b>DETAILED STOCK LIST</b>\n")
-	sb.WriteString(fmt.Sprintf("📅 Analysis Date: %s\n\n", summary.AnalysisDate.Format("2006-01-02 15:04:05")))
-
-	if len(summary.BuyList) > 0 {
-		sb.WriteString("🟢 <b>RECOMMENDED BUY LIST:</b>\n\n")
-		for i, stock := range summary.BuyList {
-			sb.WriteString(fmt.Sprintf("%d. <b>%s</b> - $%.2f\n", i+1, stock.Symbol, stock.CurrentPrice))
-			sb.WriteString(fmt.Sprintf("   💰 Buy: $%.2f | Target: $%.2f | Cut Loss: $%.2f\n", stock.BuyPrice, stock.TargetPrice, stock.StopLoss))
-			sb.WriteString(fmt.Sprintf("   📈 Profit: %.2f%% | Risk Reward Ratio: %.2f | Max Days: %d\n", stock.ProfitPercentage, stock.RiskRewardRatio, stock.MaxHoldingDays))
-			sb.WriteString(fmt.Sprintf("   🎯 Confidence: %d%% | Risk: %s\n\n", stock.Confidence, stock.RiskLevel))
-		}
-	} else {
-		sb.WriteString("🟢 <b>RECOMMENDED BUY LIST:</b> No stocks recommended for buying at this time\n\n")
-	}
-
-	return sb.String()
-}
-
-// FormatBuyListMessage formats the buy list analysis for Telegram (keeping for backward compatibility)
-func (t *TelegramBotService) FormatBuyListMessage(summary *models.SummaryAnalysisResponse) string {
-	var sb strings.Builder
-
-	sb.WriteString("📊 <b>BUY LIST ANALYSIS</b>\n")
-	sb.WriteString(fmt.Sprintf("📅 Date: %s\n", summary.AnalysisDate.Format("2006-01-02 15:04:05")))
-	sb.WriteString(fmt.Sprintf("📈 Total Stocks: %d | Buy: %d | Hold: %d\n\n", summary.TotalStocks, summary.BuyCount, summary.HoldCount))
-
-	sb.WriteString("📋 <b>MARKET OVERVIEW:</b>\n")
-	sb.WriteString(fmt.Sprintf("Best Opportunity: %s\n", summary.Summary.BestOpportunity))
-	sb.WriteString(fmt.Sprintf("Worst Opportunity: %s\n\n", summary.Summary.WorstOpportunity))
 
 	return sb.String()
 }

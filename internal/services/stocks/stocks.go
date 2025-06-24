@@ -26,19 +26,23 @@ type StockService interface {
 	GetTopNews(ctx context.Context, param models.StockNewsQueryParam) ([]models.StockNewsEntity, error)
 	GetLastStockNewsSummary(ctx context.Context, age int, stockCode string) (*models.StockNewsSummaryEntity, error)
 	GetLatestStockSignal(ctx context.Context, param models.GetStockBuySignalParam) ([]models.StockSignalEntity, error)
+	GetLatestStockPositionMonitoring(ctx context.Context, param models.GetStockPositionMonitoringParam) ([]models.StockPositionMonitoringEntity, error)
+	RequestStockPositionMonitoring(ctx context.Context, param *models.RequestStockPositionMonitoring) error
+	RequestStockAnalyzer(ctx context.Context, param *models.RequestStockAnalyzer) error
 }
 
 type stockService struct {
-	cfg                        *config.Config
-	logger                     *logrus.Logger
-	stocksRepository           repository.StocksRepository
-	stockNewsSummaryRepository repository.StockNewsSummaryRepository
-	stockPositionRepository    repository.StockPositionRepository
-	userRepository             repository.UserRepository
-	unitOfWork                 repository.UnitOfWork
-	stockNewsRepository        repository.StocksNewsRepository
-	stockSignalRepository      repository.StockSignalRepository
-	redisClient                *redis.Client
+	cfg                               *config.Config
+	logger                            *logrus.Logger
+	stocksRepository                  repository.StocksRepository
+	stockNewsSummaryRepository        repository.StockNewsSummaryRepository
+	stockPositionRepository           repository.StockPositionRepository
+	userRepository                    repository.UserRepository
+	unitOfWork                        repository.UnitOfWork
+	stockNewsRepository               repository.StocksNewsRepository
+	stockSignalRepository             repository.StockSignalRepository
+	stockPositionMonitoringRepository repository.StockPositionMonitoringRepository
+	redisClient                       *redis.Client
 }
 
 func NewStockService(
@@ -51,19 +55,21 @@ func NewStockService(
 	unitOfWork repository.UnitOfWork,
 	stockNewsRepository repository.StocksNewsRepository,
 	stockSignalRepository repository.StockSignalRepository,
+	stockPositionMonitoringRepository repository.StockPositionMonitoringRepository,
 	redisClient *redis.Client,
 ) StockService {
 	return &stockService{
-		cfg:                        cfg,
-		stocksRepository:           stocksRepository,
-		stockNewsSummaryRepository: stockNewsSummaryRepository,
-		stockPositionRepository:    stockPositionRepository,
-		userRepository:             userRepository,
-		logger:                     logger,
-		unitOfWork:                 unitOfWork,
-		stockNewsRepository:        stockNewsRepository,
-		stockSignalRepository:      stockSignalRepository,
-		redisClient:                redisClient,
+		cfg:                               cfg,
+		stocksRepository:                  stocksRepository,
+		stockNewsSummaryRepository:        stockNewsSummaryRepository,
+		stockPositionRepository:           stockPositionRepository,
+		userRepository:                    userRepository,
+		logger:                            logger,
+		unitOfWork:                        unitOfWork,
+		stockNewsRepository:               stockNewsRepository,
+		stockSignalRepository:             stockSignalRepository,
+		stockPositionMonitoringRepository: stockPositionMonitoringRepository,
+		redisClient:                       redisClient,
 	}
 }
 
@@ -104,6 +110,53 @@ func (s *stockService) GetLatestStockSignal(ctx context.Context, param models.Ge
 	}
 
 	return result, nil
+}
+
+func (s *stockService) GetLatestStockPositionMonitoring(ctx context.Context, param models.GetStockPositionMonitoringParam) ([]models.StockPositionMonitoringEntity, error) {
+	return s.stockPositionMonitoringRepository.GetLatestMonitoring(ctx, param)
+}
+
+func (s *stockService) RequestStockPositionMonitoring(ctx context.Context, param *models.RequestStockPositionMonitoring) error {
+
+	if param.StockPositionID == 0 {
+		positions, err := s.stockPositionRepository.GetList(ctx, models.StockPositionQueryParam{
+			TelegramIDs: []int64{param.TelegramID},
+			StockCodes:  []string{param.StockCode},
+		})
+		if err != nil {
+			s.logger.Error("failed to get stock position", logrus.Fields{
+				"error": err,
+			})
+			return err
+		}
+		if len(positions) == 0 {
+			s.logger.Warn("stock position not found", logrus.Fields{
+				"telegram_id": param.TelegramID,
+				"stock_code":  param.StockCode,
+			})
+			return fmt.Errorf("stock position not found")
+		}
+		param.StockPositionID = positions[0].ID
+	}
+
+	streamDataJSON, err := json.Marshal(param)
+	if err != nil {
+		s.logger.Error("failed to parse json data request stock position monitoring", logrus.Fields{
+			"error": err,
+		})
+		return err
+	}
+	if err := s.redisClient.XAdd(ctx, &goRedis.XAddArgs{
+		Stream: models.RedisStreamStockPositionMonitor,
+		Values: map[string]interface{}{"payload": streamDataJSON},
+	}).Err(); err != nil {
+		s.logger.Error("failed to send redis stream stock position monitoring", logrus.Fields{
+			"error": err,
+		})
+		return err
+	}
+
+	return nil
 }
 
 func (s *stockService) RequestStockAnalyzer(ctx context.Context, param *models.RequestStockAnalyzer) error {

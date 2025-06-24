@@ -84,10 +84,6 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 			Range:     rng,
 			After:     intervalTime,
 			StockCode: symbol,
-			ReqAnalyzer: &models.RequestStockAnalyzer{
-				NotifyUser: true,
-				TelegramID: c.Sender().ID,
-			},
 		})
 
 		if err != nil {
@@ -103,13 +99,16 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 		}
 
 		if len(stockSignal) == 0 {
-			close(stopChan)
+			defer close(stopChan)
 			t.logger.WithField("symbol", symbol).Warn("No stock signal found")
-			// Send error message
-			err := c.Send(fmt.Sprintf("⏳ Data $%s belum tersedia saat ini..", symbol))
-			if err != nil {
-				t.logger.WithError(err).Error("Failed to send error message")
-			}
+			t.stockService.RequestStockAnalyzer(newCtx, &models.RequestStockAnalyzer{
+				TelegramID: c.Sender().ID,
+				StockCode:  symbol,
+				Interval:   interval,
+				Range:      rng,
+				NotifyUser: true,
+			})
+
 			return
 		}
 

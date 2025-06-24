@@ -100,10 +100,6 @@ func (c *Client) MonitorPosition(ctx context.Context,
 		return nil, fmt.Errorf("failed to parse Gemini AI response: %w", err)
 	}
 
-	// Calculate position_age_days manually
-	positionAgeDays := int(time.Since(request.BuyTime).Hours() / 24)
-	analysis.PositionAgeDays = positionAgeDays
-
 	return &analysis, nil
 }
 

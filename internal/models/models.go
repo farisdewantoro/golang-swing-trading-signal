@@ -182,17 +182,14 @@ type NewsSummary struct {
 
 // Position Monitoring Response
 type PositionMonitoringResponse struct {
-	Symbol               string                 `json:"symbol"`
+	MarketPrice          float64                `json:"market_price"`
+	BuyDate              time.Time              `json:"buy_date"`
 	BuyPrice             float64                `json:"buy_price"`
-	CurrentPrice         float64                `json:"current_price"`
-	PositionAgeDays      int                    `json:"position_age_days"`
 	MaxHoldingPeriodDays int                    `json:"max_holding_period_days"`
-	DataInfo             DataInfo               `json:"data_info"`
-	OHLCVAnalysis        OHLCVAnalysis          `json:"ohlcv_analysis,omitempty"`
-	Recommendation       PositionRecommendation `json:"recommendation"`
-	PositionMetrics      PositionMetrics        `json:"position_metrics"`
-	TechnicalSummary     TechnicalSummary       `json:"technical_summary"`
+	Symbol               string                 `json:"symbol"`
+	TechnicalAnalysis    TechnicalAnalysis      `json:"technical_analysis"`
 	NewsSummary          NewsSummary            `json:"news_summary,omitempty"`
+	Recommendation       RecommendationPosition `json:"recommendation,omitempty"`
 }
 
 // Gemini AI Request
@@ -267,4 +264,14 @@ type PositionMonitoringTelegramUserRequest struct {
 	Symbol     string `json:"symbol" binding:"required"`
 	Interval   string `json:"interval"`
 	Period     string `json:"period"`
+}
+
+type RecommendationPosition struct {
+	Action          string   `json:"action"`
+	TargetPrice     float64  `json:"target_price,omitempty"`
+	CutLoss         float64  `json:"cut_loss,omitempty"`
+	ConfidenceLevel int      `json:"confidence_level"`
+	ExitReasoning   string   `json:"exit_reasoning"`
+	ExitConditions  []string `json:"exit_conditions"`
+	RiskRewardRatio float64  `json:"risk_reward_ratio"`
 }
