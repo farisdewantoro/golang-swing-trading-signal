@@ -51,10 +51,12 @@ func (t *TelegramRateLimiter) Send(ctx context.Context, c telebot.Context, what 
 	if err := t.checkRateLimit(ctx, c); err != nil {
 		return nil, err
 	}
+	what, opts = t.PrepareTelegramMessage(what, opts...)
 	return t.bot.Send(c.Chat(), what, opts...)
 }
 
 func (t *TelegramRateLimiter) SendWithoutLimit(ctx context.Context, c telebot.Context, what interface{}, opts ...interface{}) (*telebot.Message, error) {
+	what, opts = t.PrepareTelegramMessage(what, opts...)
 	return t.bot.Send(c.Chat(), what, opts...)
 }
 
@@ -62,6 +64,8 @@ func (t *TelegramRateLimiter) SendWithoutMsg(ctx context.Context, c telebot.Cont
 	if err := t.checkRateLimit(ctx, c); err != nil {
 		return err
 	}
+	what, opts = t.PrepareTelegramMessage(what, opts...)
+
 	_, err := t.Send(ctx, c, what, opts...)
 	if err != nil {
 		t.log.WithError(err).Error("Failed to send message")
@@ -74,10 +78,14 @@ func (t *TelegramRateLimiter) Edit(ctx context.Context, c telebot.Context, msg *
 	if err := t.checkRateLimit(ctx, c); err != nil {
 		return nil, err
 	}
+	what, opts = t.PrepareTelegramMessage(what, opts...)
+
 	return t.bot.Edit(msg, what, opts...)
 }
 
 func (t *TelegramRateLimiter) EditWithoutLimit(ctx context.Context, c telebot.Context, msg *telebot.Message, what interface{}, opts ...interface{}) (*telebot.Message, error) {
+	what, opts = t.PrepareTelegramMessage(what, opts...)
+
 	return t.bot.Edit(msg, what, opts...)
 }
 
@@ -89,6 +97,7 @@ func (t *TelegramRateLimiter) EditWithoutMsg(ctx context.Context, c telebot.Cont
 	if err := t.checkRateLimit(ctx, c); err != nil {
 		return err
 	}
+	what, opts = t.PrepareTelegramMessage(what, opts...)
 	_, err := t.Edit(ctx, c, c.Message(), what, opts...)
 	if err != nil {
 		t.log.WithError(err).Error("Failed to edit message")
@@ -187,4 +196,31 @@ func (r *TelegramRateLimiter) StartCleanupExpired(ctx context.Context) {
 func (r *TelegramRateLimiter) StopCleanupExpired() {
 	r.wg.Wait()
 	r.log.Info("Telegram rate limiter stopped")
+}
+
+func (r *TelegramRateLimiter) PrepareTelegramMessage(what interface{}, opts ...interface{}) (interface{}, []interface{}) {
+	text, ok := what.(string)
+	if !ok {
+		return what, opts // bukan string, langsung return
+	}
+
+	// Cek apakah ada opsi dengan MarkdownV2
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case telebot.SendOptions:
+			if v.ParseMode == telebot.ModeMarkdownV2 {
+				text = utils.EscapeMarkdownV2(text)
+				what = text
+				return what, opts
+			}
+		case *telebot.SendOptions:
+			if v.ParseMode == telebot.ModeMarkdownV2 {
+				text = utils.EscapeMarkdownV2(text)
+				what = text
+				return what, opts
+			}
+		}
+	}
+
+	return what, opts
 }
