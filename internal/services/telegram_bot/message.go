@@ -78,6 +78,9 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 		}
 	}
 
+	sb.WriteString("\n")
+	sb.WriteString(fmt.Sprintf("📅 _Terakhir dianalisis: %s_\n", position.AnalysisDate.Format("2006-01-02 15:04:05")))
+
 	return sb.String()
 }
 
@@ -85,7 +88,6 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 	var sb strings.Builder
 
 	sb.WriteString(fmt.Sprintf("📊 **Analysis for %s**\n", analysis.Symbol))
-	sb.WriteString(fmt.Sprintf("📅 Date: %s\n", analysis.AnalysisDate.Format("2006-01-02 15:04:05")))
 	sb.WriteString(fmt.Sprintf("🎯 Signal: **%s**\n\n", analysis.Recommendation.Action))
 
 	// Technical Analysis Summary
@@ -131,6 +133,8 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 	// Reasoning
 	sb.WriteString(fmt.Sprintf("🧠 **Reasoning:**\n %s\n\n", analysis.Recommendation.Reasoning))
 
+	sb.WriteString("\n")
+	sb.WriteString(fmt.Sprintf("📅 _Terakhir dianalisis: %s_\n", analysis.AnalysisDate.Format("2006-01-02 15:04:05")))
 	return sb.String()
 }
 
