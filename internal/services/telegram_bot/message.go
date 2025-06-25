@@ -279,8 +279,8 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 	var sb strings.Builder
 
 	for _, position := range positions {
-		sb.WriteString(fmt.Sprintf("• %s - %d\n", position.StockCode, position.BuyPrice))
-		sb.WriteString(fmt.Sprintf("🎯 TP: %d | SL: %d\n", position.TakeProfitPrice, position.StopLossPrice))
+		sb.WriteString(fmt.Sprintf("• %s - %d\n", position.StockCode, int(position.BuyPrice)))
+		sb.WriteString(fmt.Sprintf("🎯 TP: %d | SL: %d\n", int(position.TakeProfitPrice), int(position.StopLossPrice)))
 		if len(position.StockPositionMonitorings) == 0 {
 			sb.WriteString(`ℹ️ <i>Saat ini data belum tersedia. Silakan coba lagi nanti.</i>`)
 			continue
@@ -292,14 +292,14 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("💰 Last Price: %s at (%s)\n", dataStockMonitoring.MarketPrice, dataStockMonitoring.AnalysisDate.Format("01/02 15:04")))
+		sb.WriteString(fmt.Sprintf("💰 Last Price: %d at (%s)\n", int(dataStockMonitoring.MarketPrice), dataStockMonitoring.AnalysisDate.Format("01/02 15:04")))
 
-		iconAction := '🔴'
+		iconAction := "🔴"
 		switch dataStockMonitoring.Recommendation.Action {
 		case "SELL":
-			iconAction = '🟢'
+			iconAction = "🟢"
 		case "HOLD":
-			iconAction = '🟡'
+			iconAction = "🟡"
 		}
 
 		pnl := (dataStockMonitoring.MarketPrice - dataStockMonitoring.BuyPrice) / dataStockMonitoring.BuyPrice * 100
@@ -308,7 +308,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 			pnlText = fmt.Sprintf("+%.2f%%", pnl)
 		}
 		sb.WriteString(fmt.Sprintf("📈 PnL: %s\n", pnlText))
-		sb.WriteString(fmt.Sprintf("%s %s | Confidence %d\n", iconAction, dataStockMonitoring.Recommendation.Action, dataStockMonitoring.Recommendation.ConfidenceLevel))
+		sb.WriteString(fmt.Sprintf("%s %s | Confidence %d\n", iconAction, dataStockMonitoring.Recommendation.Action, int(dataStockMonitoring.Recommendation.ConfidenceLevel)))
 
 	}
 	return sb.String()

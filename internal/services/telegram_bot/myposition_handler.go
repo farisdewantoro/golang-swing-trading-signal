@@ -50,28 +50,33 @@ func (t *TelegramBotService) handleMyPositionWithEditMessage(ctx context.Context
 	sb.WriteString(footer)
 	menu := &telebot.ReplyMarkup{}
 	rows := []telebot.Row{}
+	var tempRow []telebot.Btn
 
-	for i := 0; i < len(positions); i += 2 {
-		if i+1 < len(positions) {
-			btn1 := menu.Data(positions[i].StockCode, btnToDetailStockPosition.Unique, fmt.Sprintf("%d", positions[i].ID))
-			btn2 := menu.Data(positions[i+1].StockCode, btnToDetailStockPosition.Unique, fmt.Sprintf("%d", positions[i+1].ID))
-			rows = append(rows, menu.Row(btn1, btn2))
-		} else {
-			btn := menu.Data(positions[i].StockCode, btnToDetailStockPosition.Unique, fmt.Sprintf("%d", positions[i].ID))
-			rows = append(rows, menu.Row(btn))
+	for _, position := range positions {
+		btn := menu.Data(position.StockCode, btnToDetailStockPosition.Unique, fmt.Sprintf("%d", position.ID))
+		tempRow = append(tempRow, btn)
+		if len(tempRow) == 2 {
+			rows = append(rows, menu.Row(tempRow...))
+			tempRow = []telebot.Btn{}
 		}
 	}
 
 	btnDelete := menu.Data("🗑 Hapus Pesan", btnDeleteMessage.Unique)
-	rows = append(rows, menu.Row(btnDelete))
+
+	if len(tempRow) > 0 {
+		tempRow = append(tempRow, btnDelete)
+		rows = append(rows, menu.Row(tempRow...))
+	} else {
+		rows = append(rows, menu.Row(btnDelete))
+	}
 
 	menu.Inline(rows...)
 
 	if isEditMessage {
-		return c.Edit(sb.String(), menu, telebot.ModeMarkdown)
+		return c.Edit(sb.String(), menu, telebot.ModeHTML)
 	}
 
-	return c.Send(sb.String(), menu, telebot.ModeMarkdown)
+	return c.Send(sb.String(), menu, telebot.ModeHTML)
 
 }
 
