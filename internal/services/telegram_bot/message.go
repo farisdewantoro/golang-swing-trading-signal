@@ -280,19 +280,19 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 
 	for _, position := range positions {
 		sb.WriteString(fmt.Sprintf("• %s - %d\n", position.StockCode, int(position.BuyPrice)))
-		sb.WriteString(fmt.Sprintf("🎯 TP: %d | SL: %d\n", int(position.TakeProfitPrice), int(position.StopLossPrice)))
+		sb.WriteString(fmt.Sprintf(" 🎯 TP: %d | SL: %d\n", int(position.TakeProfitPrice), int(position.StopLossPrice)))
 		if len(position.StockPositionMonitorings) == 0 {
-			sb.WriteString(`ℹ️ <i>Saat ini data belum tersedia. Silakan coba lagi nanti.</i>`)
+			sb.WriteString(" ℹ️ <i>Saat ini data belum tersedia. Silakan coba lagi nanti.</i>\n")
 			continue
 		}
 		var dataStockMonitoring *models.PositionMonitoringResponse
 		err := json.Unmarshal([]byte(position.StockPositionMonitorings[0].Data), &dataStockMonitoring)
 		if err != nil {
-			sb.WriteString(`ℹ️ <i>Data tidak valid. Silakan coba lagi nanti.</i>`)
+			sb.WriteString(" ℹ️ <i>Data tidak valid. Silakan coba lagi nanti.</i>\n")
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("💰 Last Price: %d at (%s)\n", int(dataStockMonitoring.MarketPrice), dataStockMonitoring.AnalysisDate.Format("01/02 15:04")))
+		sb.WriteString(fmt.Sprintf(" 💰 Last Price: %d (%s)\n", int(dataStockMonitoring.MarketPrice), dataStockMonitoring.AnalysisDate.Format("01/02 15:04")))
 
 		iconAction := "🔴"
 		switch dataStockMonitoring.Recommendation.Action {
@@ -307,8 +307,8 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 		if pnl > 0 {
 			pnlText = fmt.Sprintf("+%.2f%%", pnl)
 		}
-		sb.WriteString(fmt.Sprintf("📈 PnL: %s\n", pnlText))
-		sb.WriteString(fmt.Sprintf("%s %s | Confidence %d\n", iconAction, dataStockMonitoring.Recommendation.Action, int(dataStockMonitoring.Recommendation.ConfidenceLevel)))
+		sb.WriteString(fmt.Sprintf(" 📈 PnL: %s\n", pnlText))
+		sb.WriteString(fmt.Sprintf(" %s %s | Confidence: %d/100\n\n", iconAction, dataStockMonitoring.Recommendation.Action, int(dataStockMonitoring.Recommendation.ConfidenceLevel)))
 
 	}
 	return sb.String()
