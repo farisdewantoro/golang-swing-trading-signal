@@ -279,7 +279,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 	var sb strings.Builder
 
 	for _, position := range positions {
-		sb.WriteString(fmt.Sprintf("• %s\n", position.StockCode))
+		sb.WriteString(fmt.Sprintf("\n• %s", position.StockCode))
 		sb.WriteString(fmt.Sprintf("\n🎯 Buy: %d | TP: %d | SL: %d\n", int(position.BuyPrice), int(position.TakeProfitPrice), int(position.StopLossPrice)))
 		if len(position.StockPositionMonitorings) == 0 {
 			sb.WriteString(" ℹ️ <i>Saat ini data belum tersedia. Silakan coba lagi nanti.</i>\n")

@@ -73,9 +73,6 @@ func (r *stockPositionRepository) GetList(ctx context.Context, queryParam models
 			if queryParam.Monitoring.Range != nil {
 				db = db.Where("range = ?", *queryParam.Monitoring.Range)
 			}
-			if queryParam.Monitoring.Limit != nil {
-				db = db.Limit(*queryParam.Monitoring.Limit)
-			}
 		}
 		return db.Order("created_at DESC")
 	})
