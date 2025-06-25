@@ -4,7 +4,6 @@ import (
 	"context"
 	"golang-swing-trading-signal/internal/models"
 	"golang-swing-trading-signal/internal/utils"
-	"strings"
 
 	"gorm.io/gorm"
 )
@@ -44,43 +43,44 @@ func (r *stockPositionRepository) Delete(ctx context.Context, stockPosition *mod
 func (r *stockPositionRepository) GetList(ctx context.Context, queryParam models.StockPositionQueryParam, opts ...utils.DBOption) ([]models.StockPositionEntity, error) {
 	var stockPositions []models.StockPositionEntity
 
-	baseQuery := `
-		SELECT sp.*
-		FROM stock_positions sp
-	`
+	db := utils.ApplyOptions(r.db.WithContext(ctx), opts...)
+	db = db.Model(&models.StockPositionEntity{})
 
-	conditions := []string{}
-	params := []interface{}{}
-
-	// Jika filter TelegramIDs, maka JOIN ke tabel users
+	// JOIN ke users jika ada filter TelegramID
 	if len(queryParam.TelegramIDs) > 0 {
-		baseQuery += " JOIN users u ON u.id = sp.user_id"
-		conditions = append(conditions, "u.telegram_id IN ?")
-		params = append(params, queryParam.TelegramIDs)
+		db = db.Joins("JOIN users u ON u.id = stock_positions.user_id").
+			Where("u.telegram_id IN ?", queryParam.TelegramIDs)
 	}
 
 	if len(queryParam.StockCodes) > 0 {
-		conditions = append(conditions, "sp.stock_code IN ?")
-		params = append(params, queryParam.StockCodes)
+		db = db.Where("stock_positions.stock_code IN ?", queryParam.StockCodes)
 	}
 
 	if len(queryParam.IDs) > 0 {
-		conditions = append(conditions, "sp.id IN ?")
-		params = append(params, queryParam.IDs)
+		db = db.Where("stock_positions.id IN ?", queryParam.IDs)
 	}
 
 	if queryParam.IsActive {
-		conditions = append(conditions, "sp.is_active = ?")
-		params = append(params, true)
+		db = db.Where("stock_positions.is_active = ?", true)
 	}
 
-	if len(conditions) > 0 {
-		baseQuery += " WHERE " + strings.Join(conditions, " AND ")
-	}
+	// Preload monitoring dengan order by
+	db = db.Preload("StockPositionMonitorings", func(db *gorm.DB) *gorm.DB {
+		if queryParam.Monitoring != nil {
+			if queryParam.Monitoring.Interval != nil {
+				db = db.Where("interval = ?", *queryParam.Monitoring.Interval)
+			}
+			if queryParam.Monitoring.Range != nil {
+				db = db.Where("range = ?", *queryParam.Monitoring.Range)
+			}
+			if queryParam.Monitoring.Limit != nil {
+				db = db.Limit(*queryParam.Monitoring.Limit)
+			}
+		}
+		return db.Order("created_at DESC")
+	})
 
-	db := utils.ApplyOptions(r.db.WithContext(ctx), opts...)
-	result := db.Debug().Raw(baseQuery, params...).Scan(&stockPositions)
-
+	result := db.Debug().Find(&stockPositions)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil

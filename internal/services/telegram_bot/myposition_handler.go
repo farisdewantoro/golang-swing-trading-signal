@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"golang-swing-trading-signal/internal/models"
+	"golang-swing-trading-signal/internal/utils"
 	"strconv"
+	"strings"
 
 	"gopkg.in/telebot.v3"
 )
@@ -16,7 +18,20 @@ func (t *TelegramBotService) handleMyPosition(ctx context.Context, c telebot.Con
 func (t *TelegramBotService) handleMyPositionWithEditMessage(ctx context.Context, c telebot.Context, isEditMessage bool) error {
 	userID := c.Sender().ID
 
-	positions, err := t.stockService.GetStockPositionsTelegramUser(ctx, userID)
+	parts := strings.Split(dataInputTimeFrameExit, "|")
+
+	if len(parts) != 3 {
+		return t.telegramRateLimiter.EditWithoutMsg(ctx, c, commonMessageInternalError, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
+	}
+	interval, rng := parts[1], parts[2]
+
+	monitoringParam := &models.StockPositionMonitoringQueryParam{
+		Interval: utils.ToPointer(interval),
+		Range:    utils.ToPointer(rng),
+		Limit:    utils.ToPointer(1),
+	}
+
+	positions, err := t.stockService.GetStockPositionsTelegramUser(ctx, userID, monitoringParam)
 	if err != nil {
 		return c.Send(commonMessageInternalError)
 	}
@@ -25,31 +40,38 @@ func (t *TelegramBotService) handleMyPositionWithEditMessage(ctx context.Context
 		return c.Send("❌ Tidak ada saham aktif yang kamu set position saat ini.")
 	}
 
-	header := `📊 Posisi Saham yang Kamu Pantau
-
-Berikut adalah daftar saham yang sedang kamu monitor.
-
-Tekan salah satu saham di bawah ini untuk melihat detail lengkap posisinya — termasuk harga beli, target jual, stop loss, umur posisi, status alert, dan monitoring.
-
-Kamu juga bisa mengatur ulang atau menghapus posisi setelah membukanya.`
-
+	sb := strings.Builder{}
+	header := `📊 Posisi Saham yang Kamu Pantau Saat ini:`
+	sb.WriteString(header)
+	sb.WriteString("\n\n")
+	body := t.FormatMyPositionListMessage(positions)
+	sb.WriteString(body)
+	footer := `👉 Tekan tombol di bawah untuk melihat detail lengkap atau mengelola posisi.`
+	sb.WriteString(footer)
 	menu := &telebot.ReplyMarkup{}
 	rows := []telebot.Row{}
 
-	for _, p := range positions {
-		btn := menu.Data(fmt.Sprintf("➤ %s ($%.2f)", p.StockCode, p.BuyPrice), btnToDetailStockPosition.Unique, fmt.Sprintf("%d", p.ID))
-		rows = append(rows, menu.Row(btn))
+	for i := 0; i < len(positions); i += 2 {
+		if i+1 < len(positions) {
+			btn1 := menu.Data(positions[i].StockCode, btnToDetailStockPosition.Unique, fmt.Sprintf("%d", positions[i].ID))
+			btn2 := menu.Data(positions[i+1].StockCode, btnToDetailStockPosition.Unique, fmt.Sprintf("%d", positions[i+1].ID))
+			rows = append(rows, menu.Row(btn1, btn2))
+		} else {
+			btn := menu.Data(positions[i].StockCode, btnToDetailStockPosition.Unique, fmt.Sprintf("%d", positions[i].ID))
+			rows = append(rows, menu.Row(btn))
+		}
 	}
-	btnDeleteMessage := menu.Data(btnDeleteMessage.Text, btnDeleteMessage.Unique)
-	rows = append(rows, menu.Row(btnDeleteMessage))
+
+	btnDelete := menu.Data("🗑 Hapus Pesan", btnDeleteMessage.Unique)
+	rows = append(rows, menu.Row(btnDelete))
 
 	menu.Inline(rows...)
 
 	if isEditMessage {
-		return c.Edit(header, menu, telebot.ModeMarkdown)
+		return c.Edit(sb.String(), menu, telebot.ModeMarkdown)
 	}
 
-	return c.Send(header, menu, telebot.ModeMarkdown)
+	return c.Send(sb.String(), menu, telebot.ModeMarkdown)
 
 }
 

@@ -20,7 +20,7 @@ type StockService interface {
 	SetStockPosition(ctx context.Context, request *models.RequestSetPositionData) error
 	UpdateStockPositionTelegramUser(ctx context.Context, telegramID int64, stockPositionID uint, update *models.StockPositionUpdateRequest) error
 	DeleteStockPositionTelegramUser(ctx context.Context, telegramID int64, stockPositionID uint) error
-	GetStockPositionsTelegramUser(ctx context.Context, telegramID int64) ([]models.StockPositionEntity, error)
+	GetStockPositionsTelegramUser(ctx context.Context, telegramID int64, monitoring *models.StockPositionMonitoringQueryParam) ([]models.StockPositionEntity, error)
 	GetStockPosition(ctx context.Context, param models.StockPositionQueryParam) ([]models.StockPositionEntity, error)
 	GetByParam(ctx context.Context, param models.GetStocksParam) ([]models.StockEntity, error)
 	GetTopNews(ctx context.Context, param models.StockNewsQueryParam) ([]models.StockNewsEntity, error)
@@ -320,11 +320,12 @@ func (s *stockService) SetStockPosition(ctx context.Context, request *models.Req
 	return nil
 }
 
-func (s *stockService) GetStockPositionsTelegramUser(ctx context.Context, telegramID int64) ([]models.StockPositionEntity, error) {
+func (s *stockService) GetStockPositionsTelegramUser(ctx context.Context, telegramID int64, monitoring *models.StockPositionMonitoringQueryParam) ([]models.StockPositionEntity, error) {
 
 	position, err := s.stockPositionRepository.GetList(ctx, models.StockPositionQueryParam{
 		TelegramIDs: []int64{telegramID},
 		IsActive:    true,
+		Monitoring:  monitoring,
 	})
 
 	if err != nil {
