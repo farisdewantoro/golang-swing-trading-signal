@@ -186,7 +186,7 @@ type NewsSummary struct {
 type PositionMonitoringResponse struct {
 	AnalysisDate         time.Time              `json:"analysis_date"`
 	TargetPrice          float64                `json:"target_price"`
-	CutLoss              float64                `json:"cut_loss"`
+	StopLoss             float64                `json:"stop_loss"`
 	MarketPrice          float64                `json:"market_price"`
 	BuyDate              time.Time              `json:"buy_date"`
 	BuyPrice             float64                `json:"buy_price"`
