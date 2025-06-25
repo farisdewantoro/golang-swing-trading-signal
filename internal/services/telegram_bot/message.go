@@ -308,7 +308,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 			pnlText = fmt.Sprintf("+%.2f%%", pnl)
 		}
 		sb.WriteString(fmt.Sprintf(" 📈 PnL: %s\n", pnlText))
-		sb.WriteString(fmt.Sprintf(" %s %s | Confidence: %d/100\n\n", iconAction, dataStockMonitoring.Recommendation.Action, int(dataStockMonitoring.Recommendation.ConfidenceLevel)))
+		sb.WriteString(fmt.Sprintf(" %s %s | Confidence: %d/100\n", iconAction, dataStockMonitoring.Recommendation.Action, int(dataStockMonitoring.Recommendation.ConfidenceLevel)))
 
 	}
 	return sb.String()

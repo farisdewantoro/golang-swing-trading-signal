@@ -46,7 +46,7 @@ func (t *TelegramBotService) handleMyPositionWithEditMessage(ctx context.Context
 	sb.WriteString("\n\n")
 	body := t.FormatMyPositionListMessage(positions)
 	sb.WriteString(body)
-	footer := `\n\n👉 Tekan tombol di bawah untuk melihat detail lengkap atau mengelola posisi.`
+	footer := "\n👉 Tekan tombol di bawah untuk melihat detail lengkap atau mengelola posisi."
 	sb.WriteString(footer)
 	menu := &telebot.ReplyMarkup{}
 	rows := []telebot.Row{}
