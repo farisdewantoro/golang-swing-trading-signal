@@ -43,7 +43,7 @@ func (t *TelegramBotService) handleMyPositionWithEditMessage(ctx context.Context
 	sb := strings.Builder{}
 	header := `📊 Posisi Saham yang Kamu Pantau Saat ini:`
 	sb.WriteString(header)
-	sb.WriteString("\n\n")
+	sb.WriteString("\n")
 	body := t.FormatMyPositionListMessage(positions)
 	sb.WriteString(body)
 	footer := "\n👉 Tekan tombol di bawah untuk melihat detail lengkap atau mengelola posisi."
