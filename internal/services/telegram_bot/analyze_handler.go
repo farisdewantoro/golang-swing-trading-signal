@@ -91,7 +91,7 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to get stock signal")
 
 			// Send error message
-			_, err = t.telegramRateLimiter.Send(ctx, c, fmt.Sprintf("❌ Failed to get stock signal %s: %s", symbol, err.Error()))
+			_, err = t.telegramRateLimiter.Send(newCtx, c, fmt.Sprintf("❌ Failed to get stock signal %s: %s", symbol, err.Error()))
 			if err != nil {
 				t.logger.WithError(err).Error("Failed to send error message")
 			}
@@ -117,7 +117,7 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 			close(stopChan)
 			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to unmarshal analysis")
 			// Send error message
-			_, err = t.telegramRateLimiter.Send(ctx, c, fmt.Sprintf("❌ Gagal parse data %s", symbol))
+			_, err = t.telegramRateLimiter.Send(newCtx, c, fmt.Sprintf("❌ Gagal parse data %s", symbol))
 			if err != nil {
 				t.logger.WithError(err).Error("Failed to send error message")
 			}
@@ -131,7 +131,7 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 		close(stopChan)
 
 		// Ganti pesan loading dengan hasil analisa
-		_, err = t.telegramRateLimiter.Edit(ctx, c, msg, analysisMessage, &telebot.SendOptions{
+		_, err = t.telegramRateLimiter.Edit(newCtx, c, msg, analysisMessage, &telebot.SendOptions{
 			ParseMode: telebot.ModeHTML,
 		})
 		if err != nil {
