@@ -48,61 +48,6 @@ func NewClient(cfg *config.GeminiConfig, logger *logrus.Logger, geminiClient *ge
 	}
 }
 
-func (c *Client) AnalyzeStock(ctx context.Context,
-	symbol string,
-	ohlcvData []models.OHLCVData,
-	dataInfo models.DataInfo,
-	summary *models.StockNewsSummaryEntity,
-) (*models.IndividualAnalysisResponse, error) {
-	prompt := c.buildIndividualAnalysisPrompt(ctx, symbol, ohlcvData, dataInfo, summary)
-
-	response, err := c.sendRequest(ctx, prompt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get analysis from Gemini AI: %w", err)
-	}
-
-	jsonStr, err := extractJSONFromText(ctx, response)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract JSON from Gemini AI response: %w", err)
-	}
-	var analysis models.IndividualAnalysisResponse
-	if err := json.Unmarshal([]byte(jsonStr), &analysis); err != nil {
-		return nil, fmt.Errorf("failed to parse Gemini AI response: %w", err)
-	}
-
-	// Set analysis date
-	analysis.AnalysisDate = time.Now()
-
-	return &analysis, nil
-}
-
-func (c *Client) MonitorPosition(ctx context.Context,
-	request models.PositionMonitoringRequest,
-	ohlcvData []models.OHLCVData,
-	dataInfo models.DataInfo,
-	summary *models.StockNewsSummaryEntity,
-) (*models.PositionMonitoringResponse, error) {
-	prompt := c.buildPositionMonitoringPrompt(ctx, request, ohlcvData, dataInfo, summary)
-
-	response, err := c.sendRequest(ctx, prompt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get position analysis from Gemini AI: %w", err)
-	}
-
-	jsonStr, err := extractJSONFromText(ctx, response)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract JSON from Gemini AI response: %w", err)
-	}
-
-	// Parse the response
-	var analysis models.PositionMonitoringResponse
-	if err := json.Unmarshal([]byte(jsonStr), &analysis); err != nil {
-		return nil, fmt.Errorf("failed to parse Gemini AI response: %w", err)
-	}
-
-	return &analysis, nil
-}
-
 func (c *Client) sendRequest(ctx context.Context, prompt string) (string, error) {
 	contents := []*genai.Content{
 		genai.NewContentFromText(prompt, "user"),

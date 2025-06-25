@@ -35,12 +35,6 @@ var (
 )
 
 var (
-	dataInputTimeFrameMain  string = "%s|1d|3m"
-	dataInputTimeFrameEntry string = "%s|4h|1m"
-	dataInputTimeFrameExit  string = "%s|1h|14d"
-)
-
-var (
 	commonMessageInternalError string = "❌ Terjadi kesalahan internal, silakan coba lagi."
 	messageLoadingAnalysis     string = "🔍 Menganalisis: $%s"
 )

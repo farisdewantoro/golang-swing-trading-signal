@@ -21,14 +21,10 @@ func (t *TelegramBotService) handleBtnTimeframeStockPositionMonitoring(ctx conte
 	menu := &telebot.ReplyMarkup{}
 
 	msg := fmt.Sprintf("📊 Analisa Posisi Saham: *$%s*\n\nSilahkan pilih strategi analisa yang paling relevan dengan kondisi posisi kamu saat ini 👇", symbol)
-	btnMain := menu.Data("🔹 Main Signal", btnInputTimeFrameStockPositionAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameMain, symbol))
-	btnEntry := menu.Data("🔹 Entry Presisi", btnInputTimeFrameStockPositionAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameEntry, symbol))
-	btnExit := menu.Data("🔹 Exit Presisi", btnInputTimeFrameStockPositionAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameExit, symbol))
-	btnNotes := menu.Data(btnNotesTimeFrameStockPosition.Text, btnNotesTimeFrameStockPosition.Unique, symbol)
+	btnMain := menu.Data("🔍 Analisa", btnInputTimeFrameStockPositionAnalysis.Unique, symbol)
 	btnBack := menu.Data(btnBackDetailStockPosition.Text, btnBackDetailStockPosition.Unique, symbol)
 	menu.Inline(
-		menu.Row(btnMain, btnEntry),
-		menu.Row(btnExit, btnNotes),
+		menu.Row(btnMain),
 		menu.Row(btnBack),
 	)
 
@@ -38,12 +34,10 @@ func (t *TelegramBotService) handleBtnTimeframeStockPositionMonitoring(ctx conte
 func (t *TelegramBotService) handleBtnNotesTimeFrameStockPosition(ctx context.Context, c telebot.Context) error {
 	symbol := c.Data() // The symbol is passed as data
 	menu := &telebot.ReplyMarkup{}
-	btnMain := menu.Data("🔹 Main Signal", btnInputTimeFrameStockPositionAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameMain, symbol))
-	btnEntry := menu.Data("🔹 Entry Presisi", btnInputTimeFrameStockPositionAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameEntry, symbol))
-	btnExit := menu.Data("🔹 Exit Presisi", btnInputTimeFrameStockPositionAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameExit, symbol))
+	btnMain := menu.Data("🔍 Analisa", btnInputTimeFrameStockPositionAnalysis.Unique, symbol)
 	btnBack := menu.Data("🔙 Kembali", btnStockPositionMonitoring.Unique, symbol)
 	menu.Inline(
-		menu.Row(btnMain, btnEntry, btnExit),
+		menu.Row(btnMain),
 		menu.Row(btnBack),
 	)
 	return c.Edit(t.FormatNotesTimeFrameStockMessage(), menu, telebot.ModeMarkdown)
@@ -56,7 +50,7 @@ func (t *TelegramBotService) handleBtnStockPositionMonitoringAnalysis(ctx contex
 	if len(parts) != 3 {
 		return c.Edit(commonMessageInternalError, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
 	}
-	symbol, interval, rng := parts[0], parts[1], parts[2]
+	symbol := parts[0]
 
 	stopChan := make(chan struct{})
 
@@ -69,8 +63,6 @@ func (t *TelegramBotService) handleBtnStockPositionMonitoringAnalysis(ctx contex
 
 		positions, err := t.stockService.GetLatestStockPositionMonitoring(newCtx, models.GetStockPositionMonitoringParam{
 			StockCode:  symbol,
-			Interval:   interval,
-			Range:      rng,
 			TelegramID: c.Sender().ID,
 			Limit:      1,
 		})
@@ -90,8 +82,6 @@ func (t *TelegramBotService) handleBtnStockPositionMonitoringAnalysis(ctx contex
 			t.stockService.RequestStockPositionMonitoring(newCtx, &models.RequestStockPositionMonitoring{
 				TelegramID:     c.Sender().ID,
 				StockCode:      symbol,
-				Interval:       interval,
-				Range:          rng,
 				SendToTelegram: true,
 			})
 			return
@@ -100,7 +90,7 @@ func (t *TelegramBotService) handleBtnStockPositionMonitoringAnalysis(ctx contex
 		defer close(stopChan)
 		position := positions[0]
 
-		var stockMonitoring models.PositionMonitoringResponse
+		var stockMonitoring models.PositionMonitoringResponseMultiTimeframe
 		if err := json.Unmarshal([]byte(position.Data), &stockMonitoring); err != nil {
 			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to unmarshal stock monitoring")
 			// Send error message

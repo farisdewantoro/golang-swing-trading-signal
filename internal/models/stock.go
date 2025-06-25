@@ -219,16 +219,12 @@ type GetStockPositionMonitoringParam struct {
 	StockPositionID uint   `json:"stock_position_id"`
 	StockCode       string `json:"stock_code"`
 	IsActive        bool   `json:"is_active"`
-	Interval        string `json:"interval"`
-	Range           string `json:"range"`
 	Limit           int    `json:"limit"`
 }
 
 type RequestStockPositionMonitoring struct {
 	TelegramID      int64  `json:"telegram_id"`
 	StockCode       string `json:"stock_code"`
-	Interval        string `json:"interval"`
-	Range           string `json:"range"`
 	StockPositionID uint   `json:"stock_position_id"`
 	SendToTelegram  bool   `json:"send_to_telegram"`
 }

@@ -132,13 +132,23 @@ type PositionMetrics struct {
 	VolumeSupport           string  `json:"volume_support"`
 }
 
-type IndividualAnalysisResponse struct {
-	MarketPrice       float64           `json:"market_price"`
-	Symbol            string            `json:"symbol"`
-	AnalysisDate      time.Time         `json:"analysis_date"`
-	TechnicalAnalysis TechnicalAnalysis `json:"technical_analysis"`
-	Recommendation    Recommendation    `json:"recommendation"`
-	NewsSummary       NewsSummary       `json:"news_summary,omitempty"`
+type IndividualAnalysisResponseMultiTimeframe struct {
+	MarketPrice     float64   `json:"market_price"`
+	Symbol          string    `json:"symbol"`
+	AnalysisDate    time.Time `json:"analysis_date"`
+	Action          string    `json:"action"`
+	BuyPrice        float64   `json:"buy_price,omitempty"`
+	TargetPrice     float64   `json:"target_price,omitempty"`
+	CutLoss         float64   `json:"cut_loss,omitempty"`
+	ConfidenceLevel int       `json:"confidence_level"`
+	Reasoning       string    `json:"reasoning"`
+	RiskRewardRatio float64   `json:"risk_reward_ratio"`
+	KeyInsights     []string  `json:"key_insights"`
+	IsUsedNews      bool      `json:"is_used_news"`
+	TechnicalScore  int       `json:"technical_score"`
+
+	TimeframeSummaries TimeframeSummaries `json:"timeframe_summaries"`
+	NewsSummary        NewsSummary        `json:"news_summary,omitempty"`
 }
 
 // Data Information
@@ -182,19 +192,33 @@ type NewsSummary struct {
 	Reasoning       string   `json:"reasoning"`
 }
 
-// Position Monitoring Response
-type PositionMonitoringResponse struct {
-	AnalysisDate         time.Time              `json:"analysis_date"`
-	TargetPrice          float64                `json:"target_price"`
-	StopLoss             float64                `json:"stop_loss"`
-	MarketPrice          float64                `json:"market_price"`
-	BuyDate              time.Time              `json:"buy_date"`
-	BuyPrice             float64                `json:"buy_price"`
-	MaxHoldingPeriodDays int                    `json:"max_holding_period_days"`
-	Symbol               string                 `json:"symbol"`
-	TechnicalAnalysis    TechnicalAnalysis      `json:"technical_analysis"`
-	NewsSummary          NewsSummary            `json:"news_summary,omitempty"`
-	Recommendation       RecommendationPosition `json:"recommendation,omitempty"`
+type PositionMonitoringResponseMultiTimeframe struct {
+	MarketPrice          float64            `json:"market_price"`
+	Symbol               string             `json:"symbol"`
+	AnalysisDate         time.Time          `json:"analysis_date"`
+	Action               string             `json:"action"`
+	BuyPrice             float64            `json:"buy_price,omitempty"`
+	BuyDate              time.Time          `json:"buy_date,omitempty"`
+	MaxHoldingPeriodDays int                `json:"max_holding_period_days,omitempty"`
+	TargetPrice          float64            `json:"target_price,omitempty"`
+	CutLoss              float64            `json:"cut_loss,omitempty"`
+	ExitTargetPrice      float64            `json:"exit_target_price,omitempty"`
+	ExitCutLoss          float64            `json:"exit_cut_loss,omitempty"`
+	ConfidenceLevel      int                `json:"confidence_level"`
+	Reasoning            string             `json:"reasoning"`
+	RiskRewardRatio      float64            `json:"risk_reward_ratio"`
+	KeyInsights          []string           `json:"key_insights"`
+	ExitConditions       []string           `json:"exit_conditions"`
+	IsUsedNews           bool               `json:"is_used_news"`
+	TechnicalScore       int                `json:"technical_score"`
+	TimeframeSummaries   TimeframeSummaries `json:"timeframe_summaries"`
+	NewsSummary          NewsSummary        `json:"news_summary,omitempty"`
+}
+
+type TimeframeSummaries struct {
+	TimeFrame1D string `json:"time_frame_1d"`
+	TimeFrame4H string `json:"time_frame_4h"`
+	TimeFrame1H string `json:"time_frame_1h"`
 }
 
 // Gemini AI Request

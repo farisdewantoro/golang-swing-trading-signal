@@ -33,14 +33,10 @@ func (t *TelegramBotService) handleGeneralAnalysisWithParam(ctx context.Context,
 	menu := &telebot.ReplyMarkup{}
 
 	msg := fmt.Sprintf("📊 Analisa Saham: *$%s*\n\nSilakan pilih strategi analisa yang paling sesuai dengan kondisimu saat ini 👇", symbol)
-	btnMain := menu.Data("🔹 Main Signal", btnInputTimeFrameStockAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameMain, symbol))
-	btnEntry := menu.Data("🔹 Entry Presisi", btnInputTimeFrameStockAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameEntry, symbol))
-	btnExit := menu.Data("🔹 Exit Presisi", btnInputTimeFrameStockAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameExit, symbol))
-	btnNotes := menu.Data(btnNotesTimeFrameStockAnalysis.Text, btnNotesTimeFrameStockAnalysis.Unique, symbol)
+	btnMain := menu.Data("🔍 Analisa", btnInputTimeFrameStockAnalysis.Unique, symbol)
 	btnDelete := menu.Data(btnDeleteMessage.Text, btnDeleteMessage.Unique, symbol)
 	menu.Inline(
-		menu.Row(btnMain, btnEntry),
-		menu.Row(btnExit, btnNotes),
+		menu.Row(btnMain),
 		menu.Row(btnDelete),
 	)
 
@@ -112,7 +108,7 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 			return
 		}
 
-		var analysis models.IndividualAnalysisResponse
+		var analysis models.IndividualAnalysisResponseMultiTimeframe
 		if err := json.Unmarshal([]byte(stockSignal[0].Data), &analysis); err != nil {
 			close(stopChan)
 			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to unmarshal analysis")
@@ -146,12 +142,10 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 func (t *TelegramBotService) handleBtnNotesTimeFrameStockAnalysis(ctx context.Context, c telebot.Context) error {
 	symbol := c.Data() // The symbol is passed as data
 	menu := &telebot.ReplyMarkup{}
-	btnMain := menu.Data("🔹 Main Signal", btnInputTimeFrameStockAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameMain, symbol))
-	btnEntry := menu.Data("🔹 Entry Presisi", btnInputTimeFrameStockAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameEntry, symbol))
-	btnExit := menu.Data("🔹 Exit Presisi", btnInputTimeFrameStockAnalysis.Unique, fmt.Sprintf(dataInputTimeFrameExit, symbol))
+	btnMain := menu.Data("🔍 Analisa", btnInputTimeFrameStockAnalysis.Unique, symbol)
 	btnBack := menu.Data(btnBackStockAnalysis.Text, btnBackStockAnalysis.Unique, symbol)
 	menu.Inline(
-		menu.Row(btnMain, btnEntry, btnExit),
+		menu.Row(btnMain),
 		menu.Row(btnBack),
 	)
 	return c.Edit(t.FormatNotesTimeFrameStockMessage(), menu, telebot.ModeMarkdown)

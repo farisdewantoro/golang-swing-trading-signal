@@ -197,7 +197,7 @@ func (t *TelegramBotService) ResetUserState(userID int64) {
 	t.mu.Unlock()
 }
 
-func (t *TelegramBotService) SendPositionMonitoringNotification(position *models.PositionMonitoringResponse) error {
+func (t *TelegramBotService) SendPositionMonitoringNotification(position *models.PositionMonitoringResponseMultiTimeframe) error {
 	if t.config.ChatID == "" {
 		t.logger.Warn("Telegram chat ID not configured, skipping notification")
 		return nil

@@ -18,17 +18,8 @@ func (t *TelegramBotService) handleMyPosition(ctx context.Context, c telebot.Con
 func (t *TelegramBotService) handleMyPositionWithEditMessage(ctx context.Context, c telebot.Context, isEditMessage bool) error {
 	userID := c.Sender().ID
 
-	parts := strings.Split(dataInputTimeFrameExit, "|")
-
-	if len(parts) != 3 {
-		return t.telegramRateLimiter.EditWithoutMsg(ctx, c, commonMessageInternalError, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
-	}
-	interval, rng := parts[1], parts[2]
-
 	monitoringParam := &models.StockPositionMonitoringQueryParam{
-		Interval: utils.ToPointer(interval),
-		Range:    utils.ToPointer(rng),
-		Limit:    utils.ToPointer(1),
+		Limit: utils.ToPointer(1),
 	}
 
 	positions, err := t.stockService.GetStockPositionsTelegramUser(ctx, userID, monitoringParam)
