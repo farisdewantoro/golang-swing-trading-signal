@@ -116,7 +116,7 @@ func (t *TelegramBotService) handleBtnStockPositionMonitoringAnalysis(ctx contex
 
 		// Send the position monitoring results
 		_, err = t.telegramRateLimiter.Edit(newCtx, c, msg, message, &telebot.SendOptions{
-			ParseMode: telebot.ModeMarkdown,
+			ParseMode: telebot.ModeHTML,
 		})
 		if err != nil {
 			t.logger.WithError(err).Error("Failed to send error message")

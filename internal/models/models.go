@@ -133,6 +133,7 @@ type PositionMetrics struct {
 }
 
 type IndividualAnalysisResponse struct {
+	MarketPrice       float64           `json:"market_price"`
 	Symbol            string            `json:"symbol"`
 	AnalysisDate      time.Time         `json:"analysis_date"`
 	TechnicalAnalysis TechnicalAnalysis `json:"technical_analysis"`

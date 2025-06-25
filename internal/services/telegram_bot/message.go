@@ -26,10 +26,6 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 	daysRemaining := utils.RemainingDays(position.MaxHoldingPeriodDays, position.BuyDate)
 	ageDays := int(time.Since(position.BuyDate).Hours() / 24)
 
-	sb.WriteString(fmt.Sprintf("📊 **Position Update: %s**\n", position.Symbol))
-	sb.WriteString(fmt.Sprintf("💰 Buy: $%d | Current: $%d %s\n", int(position.BuyPrice), int(position.MarketPrice), unrealizedPnLPercentageStr))
-	sb.WriteString(fmt.Sprintf("📈 Age: %d days | Remaining: %d days\n\n", ageDays, daysRemaining))
-
 	iconAction := "❔"
 	if position.Recommendation.Action == "HOLD" {
 		iconAction = "🟡"
@@ -38,24 +34,31 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 	} else if position.Recommendation.Action == "BUY" {
 		iconAction = "🟢"
 	}
+
+	sb.WriteString(fmt.Sprintf("📊 <b>Position Update: %s</b>\n", position.Symbol))
+	sb.WriteString(fmt.Sprintf("💰 Buy: $%d\n", int(position.BuyPrice)))
+	sb.WriteString(fmt.Sprintf("📌 Last Price (%s): $%d %s\n", position.AnalysisDate.Format("2006-01-02 15:04:05"), int(position.MarketPrice), unrealizedPnLPercentageStr))
+	sb.WriteString(fmt.Sprintf("🎯 TP: $%d | SL: $%d\n", int(position.Recommendation.TargetPrice), int(position.Recommendation.CutLoss)))
+	sb.WriteString(fmt.Sprintf("📈 Age: %d days | Remaining: %d days\n\n", ageDays, daysRemaining))
+
 	// Recommendation
-	sb.WriteString("💡 **Recommendation:**\n")
+	sb.WriteString("💡 <b>Recommendation:</b>\n")
 	sb.WriteString(fmt.Sprintf("• %s Action: %s\n", iconAction, position.Recommendation.Action))
 	sb.WriteString(fmt.Sprintf("• 🎯 Target Price: $%d\n", int(position.Recommendation.TargetPrice)))
 	sb.WriteString(fmt.Sprintf("• 🛡 Stop Loss: $%d\n", int(position.Recommendation.CutLoss)))
 	sb.WriteString(fmt.Sprintf("• 🔁 Risk/Reward Ratio: %.2f\n", position.Recommendation.RiskRewardRatio))
 	sb.WriteString(fmt.Sprintf("• 📊 Confidence: %d%%\n\n", position.Recommendation.ConfidenceLevel))
 	// Reasoning
-	sb.WriteString(fmt.Sprintf("🧠 **Reasoning:**\n %s\n\n", position.Recommendation.ExitReasoning))
+	sb.WriteString(fmt.Sprintf("🧠 <b>Reasoning:</b>\n %s\n\n", position.Recommendation.ExitReasoning))
 	if len(position.Recommendation.ExitConditions) > 0 {
-		sb.WriteString("💡 **Exit Conditions:**\n")
+		sb.WriteString("💡 <b>Exit Conditions:</b>\n")
 		for _, condition := range position.Recommendation.ExitConditions {
 			sb.WriteString(fmt.Sprintf("• %s\n", condition))
 		}
 	}
 
 	// Technical Analysis
-	sb.WriteString("\n🔧 **Technical Analysis:**\n")
+	sb.WriteString("\n🔧 <b>Technical Analysis:</b>\n")
 	sb.WriteString(fmt.Sprintf("• Trend: %s \n", position.TechnicalAnalysis.Trend))
 	sb.WriteString(fmt.Sprintf("• EMA Signal: %s\n", position.TechnicalAnalysis.EMASignal))
 	sb.WriteString(fmt.Sprintf("• RSI: %s\n", position.TechnicalAnalysis.RSISignal))
@@ -66,7 +69,7 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 	sb.WriteString(fmt.Sprintf("• Resistance Level: $%d\n", int(position.TechnicalAnalysis.ResistanceLevel)))
 	sb.WriteString(fmt.Sprintf("• Technical Score: %d/100\n", position.TechnicalAnalysis.TechnicalScore))
 	if len(position.TechnicalAnalysis.KeyInsights) > 0 {
-		sb.WriteString("\n📌 **Technical Insights:**\n")
+		sb.WriteString("\n📌 <b>Technical Insights:</b>\n")
 		for _, insight := range position.TechnicalAnalysis.KeyInsights {
 			sb.WriteString(fmt.Sprintf("• %s\n", utils.CapitalizeSentence(insight)))
 		}
@@ -74,18 +77,18 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 	}
 
 	// News Summary
-	sb.WriteString("📰 **News Analysis:**\n")
+	sb.WriteString("📰 <b>News Analysis:</b>\n")
 	if position.NewsSummary.ConfidenceScore > 0 {
 		sb.WriteString(fmt.Sprintf("Confidence Score: %.2f\n", position.NewsSummary.ConfidenceScore))
 		sb.WriteString(fmt.Sprintf("Sentiment: %s\n", position.NewsSummary.Sentiment))
 		sb.WriteString(fmt.Sprintf("Impact: %s\n\n", position.NewsSummary.Impact))
 		sb.WriteString(fmt.Sprintf("🧠 News Insight: \n%s\n\n", position.NewsSummary.Reasoning))
 	} else {
-		sb.WriteString("_Belum ada data berita terbaru yang tersedia untuk saham ini._\n\n")
+		sb.WriteString("<i>Belum ada data berita terbaru yang tersedia untuk saham ini.</i>\n\n")
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("📅 _Terakhir dianalisis: %s_\n", position.AnalysisDate.Format("2006-01-02 15:04:05")))
+	sb.WriteString(fmt.Sprintf("📅 <i>Terakhir dianalisis: %s</i>\n", position.AnalysisDate.Format("2006-01-02 15:04:05")))
 
 	return sb.String()
 }
@@ -93,21 +96,22 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAnalysisResponse) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("📊 **Analysis for %s**\n", analysis.Symbol))
-	sb.WriteString(fmt.Sprintf("🎯 Signal: **%s**\n\n", analysis.Recommendation.Action))
+	sb.WriteString(fmt.Sprintf("📊 <b>Analysis for %s</b>\n", analysis.Symbol))
+	sb.WriteString(fmt.Sprintf("🎯 Signal: <b>%s</b>\n\n", analysis.Recommendation.Action))
+	sb.WriteString(fmt.Sprintf("📌 Last Price (%s): $%d\n", analysis.AnalysisDate.Format("2006-01-02 15:04:05"), int(analysis.MarketPrice)))
 
 	// Recommendation
-	sb.WriteString("💡 **Recommendation:**\n")
+	sb.WriteString("💡 <b>Recommendation:</b>\n")
 	sb.WriteString(fmt.Sprintf("• 💵 Buy Price: $%d\n", int(analysis.Recommendation.BuyPrice)))
 	sb.WriteString(fmt.Sprintf("• 🎯 Target Price: $%d\n", int(analysis.Recommendation.TargetPrice)))
 	sb.WriteString(fmt.Sprintf("• 🛡 Stop Loss: $%d\n", int(analysis.Recommendation.CutLoss)))
 	sb.WriteString(fmt.Sprintf("• 🔁 Risk/Reward Ratio: %.2f\n", analysis.Recommendation.RiskRewardRatio))
 	sb.WriteString(fmt.Sprintf("• 📊 Confidence: %d%%\n\n", analysis.Recommendation.ConfidenceLevel))
 	// Reasoning
-	sb.WriteString(fmt.Sprintf("🧠 **Reasoning:**\n %s\n\n", analysis.Recommendation.Reasoning))
+	sb.WriteString(fmt.Sprintf("🧠 <b>Reasoning:</b>\n %s\n\n", analysis.Recommendation.Reasoning))
 
 	// Technical Analysis Summary
-	sb.WriteString("🔧 **Technical Analysis:**\n")
+	sb.WriteString("🔧 <b>Technical Analysis:</b>\n")
 	sb.WriteString(fmt.Sprintf("• Trend: %s \n", analysis.TechnicalAnalysis.Trend))
 	sb.WriteString(fmt.Sprintf("• EMA Signal: %s\n", analysis.TechnicalAnalysis.EMASignal))
 	sb.WriteString(fmt.Sprintf("• RSI: %s\n", analysis.TechnicalAnalysis.RSISignal))
@@ -118,7 +122,7 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 	sb.WriteString(fmt.Sprintf("• Resistance Level: $%d\n", int(analysis.TechnicalAnalysis.ResistanceLevel)))
 	sb.WriteString(fmt.Sprintf("• Technical Score: %d/100\n", analysis.TechnicalAnalysis.TechnicalScore))
 	if len(analysis.TechnicalAnalysis.KeyInsights) > 0 {
-		sb.WriteString("\n📌 **Technical Insights:**\n")
+		sb.WriteString("\n📌 <b>Technical Insights:</b>\n")
 		for _, insight := range analysis.TechnicalAnalysis.KeyInsights {
 			sb.WriteString(fmt.Sprintf("• %s\n", utils.CapitalizeSentence(insight)))
 		}
@@ -126,18 +130,18 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 	}
 
 	// News Summary
-	sb.WriteString("📰 **News Analysis:**\n")
+	sb.WriteString("📰 <b>News Analysis:</b>\n")
 	if analysis.NewsSummary.ConfidenceScore > 0 {
 		sb.WriteString(fmt.Sprintf("Confidence Score: %.2f\n", analysis.NewsSummary.ConfidenceScore))
 		sb.WriteString(fmt.Sprintf("Sentiment: %s\n", analysis.NewsSummary.Sentiment))
 		sb.WriteString(fmt.Sprintf("Impact: %s\n\n", analysis.NewsSummary.Impact))
 		sb.WriteString(fmt.Sprintf("🧠 News Insight: \n%s\n\n", analysis.NewsSummary.Reasoning))
 	} else {
-		sb.WriteString("_Belum ada data berita terbaru yang tersedia untuk saham ini._\n\n")
+		sb.WriteString("<i>Belum ada data berita terbaru yang tersedia untuk saham ini.</i>\n\n")
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("📅 _Terakhir dianalisis: %s_\n", analysis.AnalysisDate.Format("2006-01-02 15:04:05")))
+	sb.WriteString(fmt.Sprintf("📅 <i>Terakhir dianalisis: %s</i>\n", analysis.AnalysisDate.Format("2006-01-02 15:04:05")))
 
 	return sb.String()
 }

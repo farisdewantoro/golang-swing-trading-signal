@@ -16,7 +16,7 @@ import (
 
 func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Context) error {
 
-	parts := strings.Split(dataInputTimeFrameEntry, "|")
+	parts := strings.Split(dataInputTimeFrameMain, "|")
 
 	if len(parts) != 3 {
 		return t.telegramRateLimiter.EditWithoutMsg(ctx, c, commonMessageInternalError, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
