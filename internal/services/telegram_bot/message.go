@@ -230,20 +230,20 @@ func (t *TelegramBotService) FormatMyStockPositionMessage(position models.StockP
 	sb.WriteString("```\n")
 	sb.WriteString("📊 Monitoring Saham\n\n")
 	sb.WriteString(fmt.Sprintf("📦 %s\n", position.StockCode))
-	sb.WriteString("──────────────────────\n")
+	sb.WriteString("────────────────────────────────\n")
 	sb.WriteString(fmt.Sprintf("💰 Harga Beli   : %.2f\n", position.BuyPrice))
 	sb.WriteString(fmt.Sprintf("🎯 Target Jual  : %.2f (+%.1f%%)\n", position.TakeProfitPrice, gain))
 	sb.WriteString(fmt.Sprintf("🛑 Stop Loss    : %.2f (−%.1f%%)\n", position.StopLossPrice, loss))
 	sb.WriteString(fmt.Sprintf("📅 Tgl Beli     : %s\n", position.BuyDate.Format("02 Jan 2006")))
 	sb.WriteString(fmt.Sprintf("⏳ Umur Posisi  : %d hari\n", age))
 	sb.WriteString(fmt.Sprintf("⌛ Sisa Waktu   : %d hari\n", remaining))
-	sb.WriteString("──────────────────────\n")
+	sb.WriteString("────────────────────────────────\n")
 	sb.WriteString(fmt.Sprintf("🔔 Alert        : %s\n", alertStatus))
 	sb.WriteString(fmt.Sprintf("📡 Monitoring   : %s\n", monitorStatus))
-	sb.WriteString("──────────────────────\n")
+	sb.WriteString("────────────────────────────────\n")
 
 	if len(position.StockPositionMonitorings) > 0 {
-		sb.WriteString("📖 *Riwayat Analisa*\n")
+		sb.WriteString("📖 Riwayat Analisa\n")
 		for _, monitoring := range position.StockPositionMonitorings {
 			var data models.PositionMonitoringResponseMultiTimeframe
 			err := json.Unmarshal([]byte(monitoring.Data), &data)
@@ -258,7 +258,10 @@ func (t *TelegramBotService) FormatMyStockPositionMessage(position models.StockP
 			case "HOLD":
 				iconAction = "🟡"
 			}
-			sb.WriteString(fmt.Sprintf("• 📅 %s - %s %s @%d | Conf: %d\n", data.AnalysisDate.Format("02/01 15:04"), iconAction, data.Action, int(data.MarketPrice), int(data.ConfidenceLevel)))
+			sb.WriteString("\n")
+			sb.WriteString(fmt.Sprintf("• 🕒 %s | Conf: %d/100\n", data.AnalysisDate.Format("02 Jan 15:04"), int(data.ConfidenceLevel)))
+			sb.WriteString(fmt.Sprintf("  %s %s @%d (%.2f%%)\n",
+				iconAction, data.Action, int(data.MarketPrice), ((data.MarketPrice - data.BuyPrice) / data.BuyPrice * 100)))
 		}
 	}
 	sb.WriteString("```\n")
