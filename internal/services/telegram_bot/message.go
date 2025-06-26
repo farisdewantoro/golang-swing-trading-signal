@@ -94,8 +94,8 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 	if analysis.Action != "HOLD" {
 		sb.WriteString("💡 <b>Recommendation:</b>\n")
 		sb.WriteString(fmt.Sprintf("• 💵 Buy Price: $%d \n", int(analysis.BuyPrice)))
-		sb.WriteString(fmt.Sprintf("• 🎯 Target Price: $%d (%.2f%%)\n", int(analysis.TargetPrice), gain))
-		sb.WriteString(fmt.Sprintf("• 🛡 Stop Loss: $%d (%.2f%%)\n", int(analysis.CutLoss), loss))
+		sb.WriteString(fmt.Sprintf("• 🎯 Target Price: $%d (%+.2f%%)\n", int(analysis.TargetPrice), gain))
+		sb.WriteString(fmt.Sprintf("• 🛡 Stop Loss: $%d (%+.2f%%)\n", int(analysis.CutLoss), loss))
 		sb.WriteString(fmt.Sprintf("• 🔁 Risk/Reward Ratio: %.2f\n", analysis.RiskRewardRatio))
 	}
 	sb.WriteString(fmt.Sprintf("• 📊 Confidence: %d%%\n", analysis.ConfidenceLevel))
