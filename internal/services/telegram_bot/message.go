@@ -660,16 +660,17 @@ Kamu belum memiliki data trading yang bisa ditampilkan.
 func (t *TelegramBotService) formatMessageReport(positions []models.StockPositionEntity) string {
 	sb := &strings.Builder{}
 	// header
-	sb.WriteString("📊 *Trading Report*\n\n")
+	sb.WriteString("📊 *Trading Report*\n")
+	sb.WriteString("Laporan ini menampilkan ringkasan performa dari posisi trading yang sudah selesai. Gunakan sebagai bahan evaluasi untuk strategi swing trading kamu.\n")
 
 	sbBody := &strings.Builder{}
-	sbBody.WriteString("\n🔎 Detail Saham:")
+	sbBody.WriteString("\n\n🔎 Detail Saham:")
 
 	countWin := 0
 	countLose := 0
 	countPnL := 0.0
 	for _, position := range positions {
-		pnl := (*position.ExitPrice - position.BuyPrice) / position.BuyPrice * 100
+		pnl := ((*position.ExitPrice - position.BuyPrice) / position.BuyPrice) * 100
 		icon := "🔴"
 		countPnL += pnl
 		if pnl > 0 {
@@ -678,14 +679,14 @@ func (t *TelegramBotService) formatMessageReport(positions []models.StockPositio
 		} else {
 			countLose++
 		}
-		sbBody.WriteString(fmt.Sprintf("\n- $%s: %s %+2.f", position.StockCode, icon, pnl))
+		sbBody.WriteString(fmt.Sprintf("\n- $%s: %s %+.2f%% (%s-%s)", position.StockCode, icon, pnl, position.BuyDate.Format("01/02"), position.ExitDate.Format("01/02")))
 	}
 
 	sbSummary := &strings.Builder{}
-	sbSummary.WriteString(fmt.Sprintf("\n🏆 *Win*: %d / Lose: %d", countWin, countLose))
-	sbSummary.WriteString(fmt.Sprintf("\n📈 *Total PnL*: %+2.f%%", countPnL))
-	sbSummary.WriteString(fmt.Sprintf("\n Win Rate: %.2f%%", float64(countWin)/float64(len(positions))*100))
+	sbSummary.WriteString(fmt.Sprintf("\n🟢 *Win*: %d | 🔴 Lose: %d", countWin, countLose))
+	sbSummary.WriteString(fmt.Sprintf("\n📈 *Total PnL*: %+.2f%%", countPnL))
+	sbSummary.WriteString(fmt.Sprintf("\n🏆 *Win Rate*: %.2f%%", float64(countWin)/float64(len(positions))*100))
 
-	result := fmt.Sprintf("%s\n%s\n\n%s", sb.String(), sbSummary.String(), sbBody.String())
+	result := fmt.Sprintf("%s%s%s", sb.String(), sbSummary.String(), sbBody.String())
 	return result
 }
