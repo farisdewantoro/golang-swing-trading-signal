@@ -135,7 +135,7 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 
 		if buyCount > 0 {
 			msgHeader.Reset()
-			msgHeader.WriteString(fmt.Sprintf("📈 Berikut saham %d yang direkomendasikan untuk BUY:", buyCount))
+			msgHeader.WriteString(fmt.Sprintf("📈 Berikut %d saham yang direkomendasikan untuk BUY:", buyCount))
 			msgFooter := `
 
 🧠 Rekomendasi berdasarkan analisis teknikal dan sentimen pasar

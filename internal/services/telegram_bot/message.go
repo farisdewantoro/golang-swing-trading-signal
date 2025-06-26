@@ -559,6 +559,7 @@ func (t *TelegramBotService) formatMessageBuyList(index int, analysis *models.In
 	sb.WriteString(fmt.Sprintf("   💵 Buy: %d\n", int(analysis.BuyPrice)))
 	sb.WriteString(fmt.Sprintf("   🎯 TP: %d  🛡 SL: %d\n", int(analysis.TargetPrice), int(analysis.CutLoss)))
 	sb.WriteString(fmt.Sprintf("   🔁 RR: %.1f   💰 Profit: +%.1f%%", analysis.RiskRewardRatio, profitPercentage))
+	sb.WriteString(fmt.Sprintf("   📊 Score: %d\n", ((analysis.ConfidenceLevel + analysis.TechnicalScore) / 2)))
 
 	return sb
 
