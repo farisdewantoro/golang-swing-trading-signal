@@ -86,7 +86,7 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 			t.logger.Info("Buy list - Analisa saham", fields)
 
 			stockSignals, err := t.stockService.GetLatestStockSignal(newCtx, models.GetStockBuySignalParam{
-				After:     utils.TimeNowWIB().Add(-t.tradingConfig.GetLatestSignalBefore),
+				After:     utils.TimeNowWIB().Add(-t.tradingConfig.GetBuyListSignalBefore),
 				StockCode: stock.Code,
 				ReqAnalyzer: &models.RequestStockAnalyzer{
 					TelegramID: c.Sender().ID,

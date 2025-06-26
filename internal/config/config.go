@@ -48,6 +48,7 @@ type TradingConfig struct {
 	ConfidenceThreshold         int
 	StockList                   []string
 	GetLatestSignalBefore       time.Duration
+	GetBuyListSignalBefore      time.Duration
 }
 
 type TelegramConfig struct {
@@ -107,6 +108,7 @@ func LoadConfig() (*Config, error) {
 			ConfidenceThreshold:         viper.GetInt("CONFIDENCE_THRESHOLD"),
 			StockList:                   stockList,
 			GetLatestSignalBefore:       viper.GetDuration("GET_LATEST_SIGNAL_BEFORE"),
+			GetBuyListSignalBefore:      viper.GetDuration("GET_BUY_LIST_SIGNAL_BEFORE"),
 		},
 		Log: LogConfig{
 			Level: viper.GetString("LOG_LEVEL"),
