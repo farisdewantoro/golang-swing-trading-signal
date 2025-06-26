@@ -30,10 +30,6 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle(&btnSetPositionAlertMonitorNo, t.WithContext(t.handleSetPositionAlertMonitorNo))
 
 	t.bot.Handle(&btnStockPositionMonitoring, t.WithContext(t.handleBtnTimeframeStockPositionMonitoring))
-	t.bot.Handle(&btnNotesTimeFrameStockPosition, t.WithContext(t.handleBtnNotesTimeFrameStockPosition))
-	t.bot.Handle(&btnInputTimeFrameStockPositionAnalysis, t.WithContext(t.handleBtnStockPositionMonitoringAnalysis))
-	t.bot.Handle(&btnInputTimeFrameStockAnalysis, t.WithContext(t.handleBtnGeneralAnalysis))
-	t.bot.Handle(&btnNotesTimeFrameStockAnalysis, t.WithContext(t.handleBtnNotesTimeFrameStockAnalysis))
 	t.bot.Handle(&btnManageStockPosition, t.WithContext(t.handleBtnManageStockPosition))
 	t.bot.Handle(&btnToDetailStockPosition, t.WithContext(t.handleBtnToDetailStockPosition))
 	t.bot.Handle(&btnBackStockPosition, t.WithContext(t.handleBtnBackStockPosition))
@@ -41,7 +37,6 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle(&btnBackDetailStockPosition, t.WithContext(t.handleBtnBackDetailStockPosition))
 	t.bot.Handle(&btnDeleteMessage, t.WithContext(t.handleBtnDeleteMessage))
 
-	t.bot.Handle(&btnBackStockAnalysis, t.WithContext(t.handleBtnBackStockAnalysis))
 	t.bot.Handle(&btnDeleteStockPosition, t.WithContext(t.handleBtnDeleteStockPosition))
 	t.bot.Handle(&btnUpdateAlertPrice, t.WithContext(t.handleBtnUpdateAlertPrice))
 	t.bot.Handle(&btnUpdateAlertMonitor, t.WithContext(t.handleBtnUpdateAlertMonitor))

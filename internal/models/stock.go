@@ -177,8 +177,6 @@ func (StockSignalEntity) TableName() string {
 
 type GetStockBuySignalParam struct {
 	Signal      string                `json:"signal"`
-	Interval    string                `json:"interval"`
-	Range       string                `json:"range"`
 	After       time.Time             `json:"after"`
 	StockCode   string                `json:"stock_code"`
 	ReqAnalyzer *RequestStockAnalyzer `json:"request_analyzer"`
@@ -215,11 +213,12 @@ func (StockPositionMonitoringEntity) TableName() string {
 }
 
 type GetStockPositionMonitoringParam struct {
-	TelegramID      int64  `json:"telegram_id"`
-	StockPositionID uint   `json:"stock_position_id"`
-	StockCode       string `json:"stock_code"`
-	IsActive        bool   `json:"is_active"`
-	Limit           int    `json:"limit"`
+	TelegramID      int64     `json:"telegram_id"`
+	StockPositionID uint      `json:"stock_position_id"`
+	StockCode       string    `json:"stock_code"`
+	IsActive        bool      `json:"is_active"`
+	Limit           int       `json:"limit"`
+	AfterTime       time.Time `json:"after_time"`
 }
 
 type RequestStockPositionMonitoring struct {

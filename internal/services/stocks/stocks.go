@@ -100,9 +100,7 @@ func (s *stockService) GetLatestStockSignal(ctx context.Context, param models.Ge
 
 	if len(result) == 0 && param.ReqAnalyzer != nil {
 		param.ReqAnalyzer = &models.RequestStockAnalyzer{
-			Interval:   param.Interval,
 			StockCode:  param.StockCode,
-			Range:      param.Range,
 			TelegramID: param.ReqAnalyzer.TelegramID,
 			NotifyUser: param.ReqAnalyzer.NotifyUser,
 		}

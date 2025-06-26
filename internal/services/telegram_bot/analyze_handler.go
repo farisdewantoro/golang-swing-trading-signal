@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"golang-swing-trading-signal/internal/models"
 	"golang-swing-trading-signal/internal/utils"
-	"strings"
 
 	"gopkg.in/telebot.v3"
 )
@@ -23,40 +22,10 @@ func (t *TelegramBotService) handleAnalyze(ctx context.Context, c telebot.Contex
 
 func (t *TelegramBotService) handleGeneralAnalysis(ctx context.Context, c telebot.Context) error {
 	symbol := c.Text()
-	return t.handleGeneralAnalysisWithParam(ctx, c, symbol, false)
-}
-func (t *TelegramBotService) handleGeneralAnalysisWithParam(ctx context.Context, c telebot.Context, symbol string, isEdit bool) error {
-	userID := c.Sender().ID
-
-	t.ResetUserState(userID)
-
-	menu := &telebot.ReplyMarkup{}
-
-	msg := fmt.Sprintf("📊 Analisa Saham: *$%s*\n\nSilakan pilih strategi analisa yang paling sesuai dengan kondisimu saat ini 👇", symbol)
-	btnMain := menu.Data("🔍 Analisa", btnInputTimeFrameStockAnalysis.Unique, symbol)
-	btnDelete := menu.Data(btnDeleteMessage.Text, btnDeleteMessage.Unique, symbol)
-	menu.Inline(
-		menu.Row(btnMain),
-		menu.Row(btnDelete),
-	)
-
-	if isEdit {
-		return c.Edit(msg, menu, telebot.ModeMarkdown)
-	}
-	return c.Send(msg, menu, telebot.ModeMarkdown)
-}
-
-func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c telebot.Context) error {
-
-	data := c.Data()
-
-	parts := strings.Split(data, "|")
-	if len(parts) != 3 {
-		return c.Edit(commonMessageInternalError, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
-	}
-	symbol, interval, rng := parts[0], parts[1], parts[2]
 
 	stopChan := make(chan struct{})
+
+	t.ResetUserState(c.Sender().ID)
 
 	// Mulai loading animasi
 	msg := t.showLoadingFlowAnalysis(c, stopChan)
@@ -65,20 +34,8 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 		newCtx, cancel := context.WithTimeout(t.ctx, t.config.TimeoutDuration)
 		defer cancel()
 
-		intervalTime, err := utils.GetTimeBefore(interval)
-		if err != nil {
-			close(stopChan)
-			t.logger.WithError(err).WithField("symbol", symbol).Error("Failed to parse interval")
-			if err := c.Send(commonMessageInternalError); err != nil {
-				t.logger.WithError(err).Error("Failed to send error message")
-			}
-			return
-		}
-
 		stockSignal, err := t.stockService.GetLatestStockSignal(newCtx, models.GetStockBuySignalParam{
-			Interval:  interval,
-			Range:     rng,
-			After:     intervalTime,
+			After:     utils.TimeNowWIB().Add(-t.tradingConfig.GetLatestSignalBefore),
 			StockCode: symbol,
 		})
 
@@ -100,10 +57,14 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 			t.stockService.RequestStockAnalyzer(newCtx, &models.RequestStockAnalyzer{
 				TelegramID: c.Sender().ID,
 				StockCode:  symbol,
-				Interval:   interval,
-				Range:      rng,
 				NotifyUser: true,
 			})
+
+			if _, err := t.telegramRateLimiter.Edit(newCtx, c, msg, fmt.Sprintf(messageAnalysisNotAvailable, symbol), &telebot.SendOptions{
+				ParseMode: telebot.ModeMarkdown,
+			}); err != nil {
+				t.logger.WithError(err).Error("Failed to edit message")
+			}
 
 			return
 		}
@@ -137,20 +98,4 @@ func (t *TelegramBotService) handleBtnGeneralAnalysis(ctx context.Context, c tel
 	})
 
 	return nil
-}
-
-func (t *TelegramBotService) handleBtnNotesTimeFrameStockAnalysis(ctx context.Context, c telebot.Context) error {
-	symbol := c.Data() // The symbol is passed as data
-	menu := &telebot.ReplyMarkup{}
-	btnMain := menu.Data("🔍 Analisa", btnInputTimeFrameStockAnalysis.Unique, symbol)
-	btnBack := menu.Data(btnBackStockAnalysis.Text, btnBackStockAnalysis.Unique, symbol)
-	menu.Inline(
-		menu.Row(btnMain),
-		menu.Row(btnBack),
-	)
-	return c.Edit(t.FormatNotesTimeFrameStockMessage(), menu, telebot.ModeMarkdown)
-}
-
-func (t *TelegramBotService) handleBtnBackStockAnalysis(ctx context.Context, c telebot.Context) error {
-	return t.handleGeneralAnalysisWithParam(ctx, c, c.Data(), true)
 }

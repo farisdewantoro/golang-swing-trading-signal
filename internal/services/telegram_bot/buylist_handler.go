@@ -9,7 +9,6 @@ import (
 	"golang-swing-trading-signal/internal/utils"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"gopkg.in/telebot.v3"
@@ -56,9 +55,9 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 		buyListResultMsg := &strings.Builder{}
 
 		msgHeader := &strings.Builder{}
-		msgHeader.WriteString(fmt.Sprintf(`
+		msgHeader.WriteString(`
 📊 Analisis Saham Sedang Berlangsung...
-`))
+`)
 
 		progressCh := make(chan Progress, len(stocks)+1)
 		t.showProgressBarWithChannel(newCtx, c, msgRoot, progressCh, len(stocks), &wg)
@@ -87,7 +86,7 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 			t.logger.Info("Buy list - Analisa saham", fields)
 
 			stockSignals, err := t.stockService.GetLatestStockSignal(newCtx, models.GetStockBuySignalParam{
-				After:     utils.TimeNowWIB().Add(-time.Hour * 2),
+				After:     utils.TimeNowWIB().Add(-t.tradingConfig.GetLatestSignalBefore),
 				StockCode: stock.Code,
 				ReqAnalyzer: &models.RequestStockAnalyzer{
 					TelegramID: c.Sender().ID,
@@ -97,14 +96,14 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 
 			if err != nil {
 				t.logger.WithError(err).WithField("symbol", stock.Code).Error("Buy list - Gagal mengambil data")
-				buyListResultMsg.WriteString(fmt.Sprintf("\n*%d. %s* - ❌ Gagal mengambil data", idx+1, stock.Code))
+				buyListResultMsg.WriteString(fmt.Sprintf("\n• %s* - ❌ Gagal mengambil data", stock.Code))
 				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
 
 			if len(stockSignals) == 0 {
 				t.logger.Warn("Buy list - Tidak ditemukan sinyal BUY", fields)
-				buyListResultMsg.WriteString(fmt.Sprintf("*%d. %s* - ❌ Saat ini data tidak tersedia\n", idx+1, stock.Code))
+				buyListResultMsg.WriteString(fmt.Sprintf("*\n• %s* - ❌ Saat ini data tidak tersedia", stock.Code))
 				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
@@ -123,7 +122,7 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 			var analysis models.IndividualAnalysisResponseMultiTimeframe
 			if err := json.Unmarshal([]byte(stockSignal.Data), &analysis); err != nil {
 				t.logger.WithError(err).WithField("symbol", stock.Code).Error("Failed to unmarshal analysis")
-				buyListResultMsg.WriteString(fmt.Sprintf("*%d. %s* - ❌ Gagal parse data\n", idx+1, stock.Code))
+				buyListResultMsg.WriteString(fmt.Sprintf("\n• %s* - ❌ Gagal parse data", stock.Code))
 				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
@@ -137,21 +136,21 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 		if buyCount > 0 {
 			msgHeader.Reset()
 			msgHeader.WriteString(fmt.Sprintf("📈 Berikut saham %d yang direkomendasikan untuk BUY:", buyCount))
-			msgFooter := fmt.Sprintf(`
+			msgFooter := `
 
 🧠 Rekomendasi berdasarkan analisis teknikal dan sentimen pasar
 
-`)
+`
 			buyListResultMsg.WriteString(msgFooter)
 			progressCh <- Progress{Index: len(stocks), StockCode: stocks[len(stocks)-1].Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 		} else {
 			msgHeader.Reset()
 			msgHeader.WriteString("❌ Tidak ditemukan sinyal BUY hari ini.")
-			msgFooter := fmt.Sprintf(`
+			msgFooter := `
 
 Coba lagi besok atau gunakan filter /analyze untuk menemukan peluang baru.
 			
-			`)
+			`
 			buyListResultMsg.WriteString(msgFooter)
 			progressCh <- Progress{Index: len(stocks), StockCode: stocks[len(stocks)-1].Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 		}

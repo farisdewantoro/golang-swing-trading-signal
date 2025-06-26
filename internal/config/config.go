@@ -47,6 +47,7 @@ type TradingConfig struct {
 	DefaultMaxHoldingPeriodDays int
 	ConfidenceThreshold         int
 	StockList                   []string
+	GetLatestSignalBefore       time.Duration
 }
 
 type TelegramConfig struct {
@@ -105,6 +106,7 @@ func LoadConfig() (*Config, error) {
 			DefaultMaxHoldingPeriodDays: viper.GetInt("DEFAULT_MAX_HOLDING_PERIOD_DAYS"),
 			ConfidenceThreshold:         viper.GetInt("CONFIDENCE_THRESHOLD"),
 			StockList:                   stockList,
+			GetLatestSignalBefore:       viper.GetDuration("GET_LATEST_SIGNAL_BEFORE"),
 		},
 		Log: LogConfig{
 			Level: viper.GetString("LOG_LEVEL"),

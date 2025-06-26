@@ -32,16 +32,6 @@ func (s *stockSignalRepository) GetLatestSignal(ctx context.Context, param model
 		filterParams = append(filterParams, param.Signal)
 	}
 
-	if param.Interval != "" {
-		filterQuery = append(filterQuery, "ss.interval = ?")
-		filterParams = append(filterParams, param.Interval)
-	}
-
-	if param.Range != "" {
-		filterQuery = append(filterQuery, "ss.range = ?")
-		filterParams = append(filterParams, param.Range)
-	}
-
 	if !param.After.IsZero() {
 		filterQuery = append(filterQuery, "ss.created_at >= ?")
 		filterParams = append(filterParams, param.After)

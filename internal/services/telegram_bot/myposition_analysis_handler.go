@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"golang-swing-trading-signal/internal/models"
 	"golang-swing-trading-signal/internal/utils"
-	"strings"
 
 	"gopkg.in/telebot.v3"
 )
@@ -18,39 +17,6 @@ func (t *TelegramBotService) handleBtnBackDetailStockPosition(ctx context.Contex
 
 func (t *TelegramBotService) handleBtnTimeframeStockPositionMonitoring(ctx context.Context, c telebot.Context) error {
 	symbol := c.Data() // The symbol is passed as data
-	menu := &telebot.ReplyMarkup{}
-
-	msg := fmt.Sprintf("📊 Analisa Posisi Saham: *$%s*\n\nSilahkan pilih strategi analisa yang paling relevan dengan kondisi posisi kamu saat ini 👇", symbol)
-	btnMain := menu.Data("🔍 Analisa", btnInputTimeFrameStockPositionAnalysis.Unique, symbol)
-	btnBack := menu.Data(btnBackDetailStockPosition.Text, btnBackDetailStockPosition.Unique, symbol)
-	menu.Inline(
-		menu.Row(btnMain),
-		menu.Row(btnBack),
-	)
-
-	return c.Edit(msg, menu, telebot.ModeMarkdown)
-}
-
-func (t *TelegramBotService) handleBtnNotesTimeFrameStockPosition(ctx context.Context, c telebot.Context) error {
-	symbol := c.Data() // The symbol is passed as data
-	menu := &telebot.ReplyMarkup{}
-	btnMain := menu.Data("🔍 Analisa", btnInputTimeFrameStockPositionAnalysis.Unique, symbol)
-	btnBack := menu.Data("🔙 Kembali", btnStockPositionMonitoring.Unique, symbol)
-	menu.Inline(
-		menu.Row(btnMain),
-		menu.Row(btnBack),
-	)
-	return c.Edit(t.FormatNotesTimeFrameStockMessage(), menu, telebot.ModeMarkdown)
-}
-
-func (t *TelegramBotService) handleBtnStockPositionMonitoringAnalysis(ctx context.Context, c telebot.Context) error {
-	data := c.Data() // The symbol is passed as data
-
-	parts := strings.Split(data, "|")
-	if len(parts) != 3 {
-		return c.Edit(commonMessageInternalError, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
-	}
-	symbol := parts[0]
 
 	stopChan := make(chan struct{})
 
@@ -65,6 +31,7 @@ func (t *TelegramBotService) handleBtnStockPositionMonitoringAnalysis(ctx contex
 			StockCode:  symbol,
 			TelegramID: c.Sender().ID,
 			Limit:      1,
+			AfterTime:  utils.TimeNowWIB().Add(-t.tradingConfig.GetLatestSignalBefore),
 		})
 		if err != nil {
 			close(stopChan)
@@ -84,10 +51,16 @@ func (t *TelegramBotService) handleBtnStockPositionMonitoringAnalysis(ctx contex
 				StockCode:      symbol,
 				SendToTelegram: true,
 			})
+
+			if _, err := t.telegramRateLimiter.Edit(newCtx, c, msg, fmt.Sprintf(messageAnalysisNotAvailable, symbol), &telebot.SendOptions{
+				ParseMode: telebot.ModeMarkdown,
+			}); err != nil {
+				t.logger.WithError(err).Error("Failed to edit message")
+			}
 			return
 		}
 
-		defer close(stopChan)
+		close(stopChan)
 		position := positions[0]
 
 		var stockMonitoring models.PositionMonitoringResponseMultiTimeframe

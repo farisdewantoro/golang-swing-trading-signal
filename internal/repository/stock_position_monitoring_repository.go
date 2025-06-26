@@ -49,6 +49,10 @@ func (s *stockPositionMonitoringRepository) GetLatestMonitoring(ctx context.Cont
 		qFilter = append(qFilter, "sp.stock_code = ?")
 		params = append(params, param.StockCode)
 	}
+	if !param.AfterTime.IsZero() {
+		qFilter = append(qFilter, "spm.created_at >= ?")
+		params = append(params, param.AfterTime)
+	}
 
 	if len(qFilter) > 0 {
 		baseQuery += " WHERE " + strings.Join(qFilter, " AND ")
