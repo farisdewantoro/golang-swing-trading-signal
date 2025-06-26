@@ -72,9 +72,8 @@ type StockPositionQueryParam struct {
 }
 
 type StockPositionMonitoringQueryParam struct {
-	Interval *string `json:"interval"`
-	Range    *string `json:"range"`
-	Limit    *int    `json:"limit"`
+	Limit      *int  `json:"limit"`
+	ShowNewest *bool `json:"show_newest"` // If true, show only the newest monitoring
 }
 
 // StockNewsSummary represents a summary of news articles for a specific stock.

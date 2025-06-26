@@ -64,20 +64,22 @@ func (r *stockPositionRepository) GetList(ctx context.Context, queryParam models
 		db = db.Where("stock_positions.is_active = ?", true)
 	}
 
-	// Preload monitoring dengan order by
-	db = db.Preload("StockPositionMonitorings", func(db *gorm.DB) *gorm.DB {
-		if queryParam.Monitoring != nil {
-			if queryParam.Monitoring.Interval != nil {
-				db = db.Where("interval = ?", *queryParam.Monitoring.Interval)
-			}
-			if queryParam.Monitoring.Range != nil {
-				db = db.Where("range = ?", *queryParam.Monitoring.Range)
-			}
-		}
-		return db.Order("created_at DESC")
-	})
+	if queryParam.Monitoring != nil {
+		// Preload monitoring dengan order by
+		db = db.Preload("StockPositionMonitorings", func(db *gorm.DB) *gorm.DB {
 
-	result := db.Debug().Find(&stockPositions)
+			if queryParam.Monitoring.ShowNewest != nil && *queryParam.Monitoring.ShowNewest {
+				db = db.Order("created_at DESC")
+			}
+
+			if queryParam.Monitoring.Limit != nil && *queryParam.Monitoring.Limit > 0 {
+				db = db.Limit(*queryParam.Monitoring.Limit)
+			}
+			return db
+		})
+	}
+
+	result := db.Find(&stockPositions)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil

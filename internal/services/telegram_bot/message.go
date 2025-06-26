@@ -67,7 +67,7 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 
 	// News Summary
 	sb.WriteString("\n📰 <b>News Analysis:</b>\n")
-	if position.NewsSummary.ConfidenceScore > 0 {
+	if position.NewsConfidenceScore > 50 {
 		sb.WriteString(fmt.Sprintf("Confidence Score: %.2f\n", position.NewsSummary.ConfidenceScore))
 		sb.WriteString(fmt.Sprintf("Sentiment: %s\n", position.NewsSummary.Sentiment))
 		sb.WriteString(fmt.Sprintf("Impact: %s\n\n", position.NewsSummary.Impact))
@@ -109,7 +109,7 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 
 	// News Summary
 	sb.WriteString("\n📰 <b>News Analysis:</b>\n")
-	if analysis.NewsSummary.ConfidenceScore > 0 && analysis.IsUsedNews {
+	if analysis.NewsConfidenceScore > 50 {
 		sb.WriteString(fmt.Sprintf("Confidence Score: %.2f\n", analysis.NewsSummary.ConfidenceScore))
 		sb.WriteString(fmt.Sprintf("Sentiment: %s\n", analysis.NewsSummary.Sentiment))
 		sb.WriteString(fmt.Sprintf("Impact: %s\n\n", analysis.NewsSummary.Impact))
@@ -226,30 +226,44 @@ func (t *TelegramBotService) FormatMyStockPositionMessage(position models.StockP
 		monitorStatus = "❌ Tidak Aktif"
 	}
 
-	return fmt.Sprintf(
-		"```\n📊 Monitoring Saham\n\n"+
-			"📦 %s\n"+
-			"──────────────────────\n"+
-			"💰 Harga Beli   : %.2f\n"+
-			"🎯 Target Jual  : %.2f (+%.1f%%)\n"+
-			"🛑 Stop Loss    : %.2f (−%.1f%%)\n"+
-			"📅 Tgl Beli     : %s\n"+
-			"⏳ Umur Posisi  : %d hari\n"+
-			"⌛ Sisa Waktu   : %d hari\n"+
-			"──────────────────────\n"+
-			"🔔 Alert        : %s\n"+
-			"📡 Monitoring   : %s\n"+
-			"──────────────────────\n```",
-		position.StockCode,
-		position.BuyPrice,
-		position.TakeProfitPrice, gain,
-		position.StopLossPrice, loss,
-		position.BuyDate.Format("02 Jan 2006"),
-		age,
-		remaining,
-		alertStatus,
-		monitorStatus,
-	)
+	sb := strings.Builder{}
+	sb.WriteString("```\n")
+	sb.WriteString("📊 Monitoring Saham\n\n")
+	sb.WriteString(fmt.Sprintf("📦 %s\n", position.StockCode))
+	sb.WriteString("──────────────────────\n")
+	sb.WriteString(fmt.Sprintf("💰 Harga Beli   : %.2f\n", position.BuyPrice))
+	sb.WriteString(fmt.Sprintf("🎯 Target Jual  : %.2f (+%.1f%%)\n", position.TakeProfitPrice, gain))
+	sb.WriteString(fmt.Sprintf("🛑 Stop Loss    : %.2f (−%.1f%%)\n", position.StopLossPrice, loss))
+	sb.WriteString(fmt.Sprintf("📅 Tgl Beli     : %s\n", position.BuyDate.Format("02 Jan 2006")))
+	sb.WriteString(fmt.Sprintf("⏳ Umur Posisi  : %d hari\n", age))
+	sb.WriteString(fmt.Sprintf("⌛ Sisa Waktu   : %d hari\n", remaining))
+	sb.WriteString("──────────────────────\n")
+	sb.WriteString(fmt.Sprintf("🔔 Alert        : %s\n", alertStatus))
+	sb.WriteString(fmt.Sprintf("📡 Monitoring   : %s\n", monitorStatus))
+	sb.WriteString("──────────────────────\n")
+
+	if len(position.StockPositionMonitorings) > 0 {
+		sb.WriteString("📖 *Riwayat Analisa*\n")
+		for _, monitoring := range position.StockPositionMonitorings {
+			var data models.PositionMonitoringResponseMultiTimeframe
+			err := json.Unmarshal([]byte(monitoring.Data), &data)
+			if err != nil {
+				continue
+			}
+
+			iconAction := "🔴"
+			switch data.Action {
+			case "SELL":
+				iconAction = "🟢"
+			case "HOLD":
+				iconAction = "🟡"
+			}
+			sb.WriteString(fmt.Sprintf("• 📅 %s - %s %s @%d | Conf: %d\n", data.AnalysisDate.Format("02/01 15:04"), iconAction, data.Action, int(data.MarketPrice), int(data.ConfidenceLevel)))
+		}
+	}
+	sb.WriteString("```\n")
+
+	return sb.String()
 }
 
 func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.StockPositionEntity) string {

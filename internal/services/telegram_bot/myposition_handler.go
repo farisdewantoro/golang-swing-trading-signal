@@ -19,7 +19,7 @@ func (t *TelegramBotService) handleMyPositionWithEditMessage(ctx context.Context
 	userID := c.Sender().ID
 
 	monitoringParam := &models.StockPositionMonitoringQueryParam{
-		Limit: utils.ToPointer(1),
+		ShowNewest: utils.ToPointer(true),
 	}
 
 	positions, err := t.stockService.GetStockPositionsTelegramUser(ctx, userID, monitoringParam)
@@ -82,6 +82,10 @@ func (t *TelegramBotService) handleBtnToDetailStockPosition(ctx context.Context,
 		TelegramIDs: []int64{userID},
 		IsActive:    true,
 		IDs:         []uint{uint(id)},
+		Monitoring: &models.StockPositionMonitoringQueryParam{
+			Limit:      utils.ToPointer(t.config.MaxShowHistoryAnalysis),
+			ShowNewest: utils.ToPointer(true),
+		},
 	})
 	if err != nil {
 		return c.Send(commonMessageInternalError)
