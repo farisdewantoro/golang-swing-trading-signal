@@ -227,3 +227,15 @@ type RequestStockPositionMonitoring struct {
 	StockPositionID uint   `json:"stock_position_id"`
 	SendToTelegram  bool   `json:"send_to_telegram"`
 }
+
+type TopNewsCustomResult struct {
+	ID          uint           `json:"id"`
+	Title       string         `json:"title"`
+	Link        string         `json:"link"`
+	PublishedAt time.Time      `json:"published_at"`
+	Summary     string         `json:"summary"`
+	Source      string         `json:"source"`
+	ImpactScore float64        `json:"impact_score"`
+	StockCodes  pq.StringArray `gorm:"stock_codes;type:text[]" json:"stock_codes"`
+	FinalScore  float64        `json:"final_score"`
+}

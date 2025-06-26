@@ -48,6 +48,7 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle(&btnActionNewsFind, t.WithContext(t.handleBtnActionNewsFind))
 	t.bot.Handle(&btnNewsConfirmSendSummary, t.WithContext(t.handleBtnNewsConfirmSendSummary))
 	t.bot.Handle(&btnNewsStockPosition, t.WithContext(t.handleBtnNewsStockPosition))
+	t.bot.Handle(&btnActionTopNews, t.WithContext(t.handleBtnActionTopNews))
 
 	// Handle incoming text messages for conversations
 	t.bot.Handle(telebot.OnText, t.WithContext(t.handleConversation))

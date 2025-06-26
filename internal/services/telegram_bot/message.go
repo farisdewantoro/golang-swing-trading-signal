@@ -690,3 +690,24 @@ func (t *TelegramBotService) formatMessageReport(positions []models.StockPositio
 	result := fmt.Sprintf("%s%s%s", sb.String(), sbSummary.String(), sbBody.String())
 	return result
 }
+
+func (t *TelegramBotService) formatMessageTopNewsList(newsList []models.TopNewsCustomResult) string {
+	sb := &strings.Builder{}
+	sb.WriteString(fmt.Sprintf("📈 <b>Top News Saham Hari Ini (%s)</b>\n", utils.TimeNowWIB().Format("02/01 15:04")))
+
+	for _, news := range newsList {
+		sb.WriteString(fmt.Sprintf("\n<i>📅 %s | 🌐  %s</i>\n", news.PublishedAt.Format("2006-01-02"), utils.ExtractDomain(news.Link)))
+		sb.WriteString(fmt.Sprintf("<b>%s</b>\n", utils.TruncateTitle(news.Title, 80)))
+		sb.WriteString(utils.TruncateTitle(news.Summary, 300))
+		sb.WriteString("\n")
+		if len(news.StockCodes) > 0 {
+			sb.WriteString(fmt.Sprintf(" 📊 Saham: %s\n", strings.Join(news.StockCodes, ", ")))
+		}
+		link := fmt.Sprintf("<a href='%s'>Selengkapnya</a>", news.Link)
+		sb.WriteString(fmt.Sprintf(" 🔗 %s\n", link))
+
+	}
+	sb.WriteString("\n")
+
+	return sb.String()
+}

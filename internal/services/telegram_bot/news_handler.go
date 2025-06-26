@@ -14,14 +14,12 @@ func (t *TelegramBotService) handleNews(ctx context.Context, c telebot.Context) 
 	menu := &telebot.ReplyMarkup{}
 
 	btnFind := menu.Data(btnActionNewsFind.Text, btnActionNewsFind.Unique)
-	btnAlert := menu.Data(btnActionNewsAlert.Text, btnActionNewsAlert.Unique)
-	btnDailySummary := menu.Data(btnActionNewsDailySummary.Text, btnActionNewsDailySummary.Unique)
+	btnTopNews := menu.Data(btnActionTopNews.Text, btnActionTopNews.Unique)
 	btnDeleteForCancel := menu.Data(btnCancelGeneral.Text, btnDeleteMessage.Unique)
 
 	menu.Inline(
 		menu.Row(btnFind),
-		menu.Row(btnAlert),
-		menu.Row(btnDailySummary),
+		menu.Row(btnTopNews),
 		menu.Row(btnDeleteForCancel),
 	)
 

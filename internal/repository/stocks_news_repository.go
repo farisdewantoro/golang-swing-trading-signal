@@ -13,6 +13,7 @@ import (
 
 type StocksNewsRepository interface {
 	GetTopNews(ctx context.Context, param models.StockNewsQueryParam) ([]models.StockNewsEntity, error)
+	GetTopNewsGlobal(ctx context.Context, days int, limit int) ([]models.TopNewsCustomResult, error)
 }
 
 type stocksNewsRepository struct {
@@ -94,4 +95,37 @@ func (s *stocksNewsRepository) GetTopNews(ctx context.Context, param models.Stoc
 	}
 
 	return news, nil
+}
+
+func (s *stocksNewsRepository) GetTopNewsGlobal(ctx context.Context, days int, limit int) ([]models.TopNewsCustomResult, error) {
+	var results []models.TopNewsCustomResult
+
+	query := fmt.Sprintf(`
+    SELECT
+        sn.id,
+        sn.title,
+        sn.link,
+        sn.published_at,
+        sn.summary,
+        sn.source,
+        sn.impact_score,
+        ARRAY_AGG(sm.stock_code) AS stock_codes,
+        MAX(0.5 * sm.confidence_score + 0.3 * sn.impact_score + 
+            0.2 * GREATEST(0, 1 - (EXTRACT(EPOCH FROM (NOW() - sn.published_at)) / 86400) / %d)) AS final_score
+    FROM stock_news AS sn
+    JOIN stock_mentions AS sm ON sm.stock_news_id = sn.id
+    WHERE sn.published_at >= NOW() - INTERVAL '%d DAYS'
+    GROUP BY
+        sn.id, sn.title, sn.link, sn.published_at,
+        sn.summary, sn.source, sn.impact_score
+    ORDER BY final_score DESC
+    LIMIT ?
+    `,
+		days, days)
+
+	err := s.db.WithContext(ctx).Raw(query, limit).Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
 }
