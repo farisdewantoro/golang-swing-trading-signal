@@ -64,6 +64,10 @@ func (r *stockPositionRepository) GetList(ctx context.Context, queryParam models
 		db = db.Where("stock_positions.is_active = ?", true)
 	}
 
+	if queryParam.IsExit != nil && *queryParam.IsExit {
+		db = db.Where("stock_positions.exit_price is not null")
+	}
+
 	if queryParam.Monitoring != nil {
 		// Preload monitoring dengan order by
 		db = db.Preload("StockPositionMonitorings", func(db *gorm.DB) *gorm.DB {

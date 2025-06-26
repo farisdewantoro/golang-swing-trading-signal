@@ -640,3 +640,52 @@ func (t *TelegramBotService) formatMessageNewsSummary(summary *models.StockNewsS
 
 	return sb.String()
 }
+
+func (t *TelegramBotService) formatMessageReportNotExits() string {
+	return `📭 *Belum Ada Riwayat Trading*
+
+Kamu belum memiliki data trading yang bisa ditampilkan.
+
+📌 Berikut alur untuk mulai mencatat performa trading kamu:
+
+1️⃣ Gunakan perintah */setposition* untuk mencatat saat kamu masuk posisi (BUY/SELL).
+
+2️⃣ Setelah keluar dari posisi, klik tombol *Exit Posisi* dan isi form exit (harga keluar, tanggal, dll).
+
+3️⃣ Setelah posisi ditutup, kamu bisa menggunakan perintah */report* untuk melihat performa trading kamu.
+
+💡 Data baru akan muncul di report setelah kamu menyelesaikan langkah di atas minimal 1 kali.`
+}
+
+func (t *TelegramBotService) formatMessageReport(positions []models.StockPositionEntity) string {
+	sb := &strings.Builder{}
+	// header
+	sb.WriteString("📊 *Trading Report*\n\n")
+
+	sbBody := &strings.Builder{}
+	sbBody.WriteString("\n🔎 Detail Saham:")
+
+	countWin := 0
+	countLose := 0
+	countPnL := 0.0
+	for _, position := range positions {
+		pnl := (*position.ExitPrice - position.BuyPrice) / position.BuyPrice * 100
+		icon := "🔴"
+		countPnL += pnl
+		if pnl > 0 {
+			icon = "🟢"
+			countWin++
+		} else {
+			countLose++
+		}
+		sbBody.WriteString(fmt.Sprintf("\n- $%s: %s %+2.f", position.StockCode, icon, pnl))
+	}
+
+	sbSummary := &strings.Builder{}
+	sbSummary.WriteString(fmt.Sprintf("\n🏆 *Win*: %d / Lose: %d", countWin, countLose))
+	sbSummary.WriteString(fmt.Sprintf("\n📈 *Total PnL*: %+2.f%%", countPnL))
+	sbSummary.WriteString(fmt.Sprintf("\n Win Rate: %.2f%%", float64(countWin)/float64(len(positions))*100))
+
+	result := fmt.Sprintf("%s\n%s\n\n%s", sb.String(), sbSummary.String(), sbBody.String())
+	return result
+}

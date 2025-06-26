@@ -20,6 +20,7 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle("/cancel", t.handleCancel)
 	t.bot.Handle("/myposition", t.WithContext(t.handleMyPosition), t.IsOnConversationMiddleware())
 	t.bot.Handle("/news", t.WithContext(t.handleNews), t.IsOnConversationMiddleware())
+	t.bot.Handle("/report", t.WithContext(t.handleReport), t.IsOnConversationMiddleware())
 
 	// Inline button handlers
 
@@ -75,6 +76,7 @@ Saya di sini untuk membantu kamu memantau saham dan mencari peluang terbaik dari
 📝 /setposition - Catat posisi saham yang sedang kamu pegang  
 📊 /myposition - Lihat semua posisi yang sedang dipantau  
 📰 /news - Lihat berita terkini, alert berita penting saham, ringkasan berita
+💰 /report Melihat ringkasan hasil trading kamu berdasarkan posisi yang sudah kamu entry dan exit.
 
 💡 Info & Bantuan:
 🆘 /help - Lihat panduan penggunaan lengkap  
@@ -102,6 +104,7 @@ Berikut daftar perintah yang bisa kamu gunakan:
 /myposition - Lihat semua posisi yang sedang kamu pantau  
 /news - Lihat berita terkini, alert berita penting saham, ringkasan berita
 /cancel - Batalkan perintah yang sedang berjalan
+/report - Melihat ringkasan hasil trading kamu berdasarkan posisi yang sudah kamu entry dan exit.
 
 💡 *Tips Penggunaan:*
 1. Gunakan /analyze untuk analisa cepat atau mendalam (bisa juga langsung kirim kode saham, misalnya: 'BBCA')  

@@ -68,6 +68,7 @@ type StockPositionQueryParam struct {
 	TelegramIDs []int64                            `json:"telegram_ids"`
 	StockCodes  []string                           `json:"stock_codes"`
 	IsActive    bool                               `json:"is_active"`
+	IsExit      *bool                              `json:"is_exit"`
 	Monitoring  *StockPositionMonitoringQueryParam `json:"monitoring"`
 }
 
