@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"golang-swing-trading-signal/internal/models"
+	"golang-swing-trading-signal/internal/utils"
 	"strings"
 
 	"gorm.io/gorm"
@@ -10,6 +11,7 @@ import (
 
 type StockPositionMonitoringRepository interface {
 	GetLatestMonitoring(ctx context.Context, param models.GetStockPositionMonitoringParam) ([]models.StockPositionMonitoringEntity, error)
+	GetRecentDistinctMonitorings(ctx context.Context, param models.StockPositionMonitoringQueryParam, opts ...utils.DBOption) ([]models.StockPositionMonitoringEntity, error)
 }
 
 type stockPositionMonitoringRepository struct {
@@ -67,4 +69,40 @@ func (s *stockPositionMonitoringRepository) GetLatestMonitoring(ctx context.Cont
 
 	err := s.db.WithContext(ctx).Debug().Raw(baseQuery, params...).Scan(&stocks).Error
 	return stocks, err
+}
+
+func (r *stockPositionMonitoringRepository) GetRecentDistinctMonitorings(ctx context.Context, param models.StockPositionMonitoringQueryParam, opts ...utils.DBOption) ([]models.StockPositionMonitoringEntity, error) {
+	var results []models.StockPositionMonitoringEntity
+
+	query := `
+	WITH ranked AS (
+	  SELECT
+	    id,
+	    stock_position_id,
+	    signal,
+	    confidence_score,
+	    data,
+	    created_at,
+	    LAG(signal) OVER (PARTITION BY stock_position_id ORDER BY created_at DESC) AS prev_signal,
+	    LAG(data->>'market_price') OVER (PARTITION BY stock_position_id ORDER BY created_at DESC) AS prev_price,
+	    data->>'market_price' AS price
+	  FROM stock_position_monitorings
+	  WHERE stock_position_id = ? AND deleted_at IS NULL
+	),
+	filtered AS (
+	  SELECT *
+	  FROM ranked
+	  WHERE
+	    prev_signal IS NULL OR
+	    signal IS DISTINCT FROM prev_signal OR
+	    price IS DISTINCT FROM prev_price
+	)
+	SELECT *
+	FROM filtered
+	ORDER BY created_at DESC
+	LIMIT ?
+	`
+
+	err := utils.ApplyOptions(r.db.WithContext(ctx), opts...).Raw(query, param.StockPositionID, param.Limit).Scan(&results).Error
+	return results, err
 }

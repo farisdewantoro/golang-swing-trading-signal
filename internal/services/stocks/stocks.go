@@ -229,7 +229,7 @@ func (s *stockService) GetStockPositionWithHistoryMonitoring(ctx context.Context
 		return nil, fmt.Errorf("position not found")
 	}
 
-	positions[0].StockPositionMonitorings, err = s.stockPositionRepository.GetRecentDistinctMonitorings(ctx, models.StockPositionMonitoringQueryParam{
+	positions[0].StockPositionMonitorings, err = s.stockPositionMonitoringRepository.GetRecentDistinctMonitorings(ctx, models.StockPositionMonitoringQueryParam{
 		StockPositionID: positions[0].ID,
 		Limit:           monitoring.Limit,
 		ShowNewest:      monitoring.ShowNewest,

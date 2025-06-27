@@ -13,7 +13,6 @@ type StockPositionRepository interface {
 	Update(ctx context.Context, stockPosition *models.StockPositionEntity, opts ...utils.DBOption) error
 	Delete(ctx context.Context, stockPosition *models.StockPositionEntity, opts ...utils.DBOption) error
 	GetList(ctx context.Context, queryParam models.StockPositionQueryParam, opts ...utils.DBOption) ([]models.StockPositionEntity, error)
-	GetRecentDistinctMonitorings(ctx context.Context, param models.StockPositionMonitoringQueryParam, opts ...utils.DBOption) ([]models.StockPositionMonitoringEntity, error)
 }
 
 type stockPositionRepository struct {
@@ -93,42 +92,4 @@ func (r *stockPositionRepository) GetList(ctx context.Context, queryParam models
 	}
 
 	return stockPositions, nil
-}
-
-func (r *stockPositionRepository) GetRecentDistinctMonitorings(ctx context.Context, param models.StockPositionMonitoringQueryParam, opts ...utils.DBOption) ([]models.StockPositionMonitoringEntity, error) {
-	var results []models.StockPositionMonitoringEntity
-
-	query := `
-	WITH ranked AS (
-	  SELECT
-	    id,
-	    stock_position_id,
-	    signal,
-	    confidence_score,
-	    data,
-	    created_at,
-	    LAG(signal) OVER (PARTITION BY stock_position_id ORDER BY created_at DESC) AS prev_signal,
-	    LAG(confidence_score) OVER (PARTITION BY stock_position_id ORDER BY created_at DESC) AS prev_confidence,
-	    LAG(data->>'market_price') OVER (PARTITION BY stock_position_id ORDER BY created_at DESC) AS prev_price,
-	    data->>'market_price' AS price
-	  FROM stock_position_monitorings
-	  WHERE stock_position_id = ? AND deleted_at IS NULL
-	),
-	filtered AS (
-	  SELECT *
-	  FROM ranked
-	  WHERE
-	    prev_signal IS NULL OR
-	    signal IS DISTINCT FROM prev_signal OR
-	    confidence_score IS DISTINCT FROM prev_confidence OR
-	    price IS DISTINCT FROM prev_price
-	)
-	SELECT *
-	FROM filtered
-	ORDER BY created_at DESC
-	LIMIT ?
-	`
-
-	err := utils.ApplyOptions(r.db.WithContext(ctx), opts...).Raw(query, param.StockPositionID, param.Limit).Scan(&results).Error
-	return results, err
 }
