@@ -16,13 +16,23 @@ import (
 
 func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Context) error {
 
-	stocks, err := t.stockService.GetStocks(ctx)
+	stockSignals, err := t.stockService.GetLatestStockSignal(ctx, models.GetStockBuySignalParam{
+		After: utils.TimeNowWIB().Add(-t.tradingConfig.GetBuyListSignalBefore),
+	})
+
 	if err != nil {
 		return t.telegramRateLimiter.EditWithoutMsg(ctx, c, commonMessageInternalError, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
 	}
 
-	if len(stocks) == 0 {
-		return t.telegramRateLimiter.EditWithoutMsg(ctx, c, "Tidak ada data saham", &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
+	if len(stockSignals) == 0 {
+		msg := `❌ Tidak ditemukan sinyal BUY hari ini.
+
+Coba lagi nanti atau gunakan filter /analyze untuk menemukan peluang baru.`
+		_, err := t.telegramRateLimiter.Send(ctx, c, msg, &telebot.ReplyMarkup{}, telebot.ModeMarkdown)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	utils.SafeGo(func() {
@@ -59,13 +69,13 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 📊 Analisis Saham Sedang Berlangsung...
 `)
 
-		progressCh := make(chan Progress, len(stocks)+1)
-		t.showProgressBarWithChannel(newCtx, c, msgRoot, progressCh, len(stocks), &wg)
+		progressCh := make(chan Progress, len(stockSignals)+1)
+		t.showProgressBarWithChannel(newCtx, c, msgRoot, progressCh, len(stockSignals), &wg)
 
-		progressCh <- Progress{Index: 0, StockCode: stocks[0].Code, Header: msgHeader.String()}
+		progressCh <- Progress{Index: 0, StockCode: stockSignals[0].StockCode, Header: msgHeader.String()}
 
 		buyCount := 0
-		for idx, stock := range stocks {
+		for idx, stockSignal := range stockSignals {
 
 			if stop, err := utils.ShouldStopCtx(newCtx, t.logger); stop {
 				switch {
@@ -78,37 +88,26 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 			}
 
 			fields := logrus.Fields{
-				"symbol": stock.Code,
+				"symbol": stockSignal.StockCode,
 				"index":  idx + 1,
-				"total":  len(stocks),
+				"total":  len(stockSignals),
 			}
 
 			t.logger.Info("Buy list - Analisa saham", fields)
 
-			stockSignals, err := t.stockService.GetLatestStockSignal(newCtx, models.GetStockBuySignalParam{
-				After:     utils.TimeNowWIB().Add(-t.tradingConfig.GetBuyListSignalBefore),
-				StockCode: stock.Code,
-				ReqAnalyzer: &models.RequestStockAnalyzer{
-					TelegramID: c.Sender().ID,
-					NotifyUser: false,
-				},
-			})
-
 			if err != nil {
-				t.logger.WithError(err).WithField("symbol", stock.Code).Error("Buy list - Gagal mengambil data")
-				buyListResultMsg.WriteString(fmt.Sprintf("\n• %s* - ❌ Gagal mengambil data", stock.Code))
-				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
+				t.logger.WithError(err).WithField("symbol", stockSignal.StockCode).Error("Buy list - Gagal mengambil data")
+				buyListResultMsg.WriteString(fmt.Sprintf("\n• %s* - ❌ Gagal mengambil data", stockSignal.StockCode))
+				progressCh <- Progress{Index: idx + 1, StockCode: stockSignal.StockCode, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
 
 			if len(stockSignals) == 0 {
 				t.logger.Warn("Buy list - Tidak ditemukan sinyal BUY", fields)
-				buyListResultMsg.WriteString(fmt.Sprintf("*\n• %s* - ❌ Saat ini data tidak tersedia", stock.Code))
-				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
+				buyListResultMsg.WriteString(fmt.Sprintf("*\n• %s* - ❌ Saat ini data tidak tersedia", stockSignal.StockCode))
+				progressCh <- Progress{Index: idx + 1, StockCode: stockSignal.StockCode, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
-
-			stockSignal := stockSignals[0]
 
 			if stockSignal.Signal != "BUY" {
 				t.logger.Debug("Buy list - Tidak direkomendasikan untuk BUY", fields)
@@ -121,15 +120,15 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 			}
 			var analysis models.IndividualAnalysisResponseMultiTimeframe
 			if err := json.Unmarshal([]byte(stockSignal.Data), &analysis); err != nil {
-				t.logger.WithError(err).WithField("symbol", stock.Code).Error("Failed to unmarshal analysis")
-				buyListResultMsg.WriteString(fmt.Sprintf("\n• %s* - ❌ Gagal parse data", stock.Code))
-				progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
+				t.logger.WithError(err).WithField("symbol", stockSignal.StockCode).Error("Failed to unmarshal analysis")
+				buyListResultMsg.WriteString(fmt.Sprintf("\n• %s* - ❌ Gagal parse data", stockSignal.StockCode))
+				progressCh <- Progress{Index: idx + 1, StockCode: stockSignal.StockCode, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 				continue
 			}
 			newBuyListMsg := t.formatMessageBuyList(buyCount, &analysis)
 
 			buyListResultMsg.WriteString(newBuyListMsg.String())
-			progressCh <- Progress{Index: idx + 1, StockCode: stock.Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
+			progressCh <- Progress{Index: idx + 1, StockCode: stockSignal.StockCode, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 
 		}
 
@@ -142,17 +141,17 @@ func (t *TelegramBotService) handleBuyList(ctx context.Context, c telebot.Contex
 
 `
 			buyListResultMsg.WriteString(msgFooter)
-			progressCh <- Progress{Index: len(stocks), StockCode: stocks[len(stocks)-1].Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
+			progressCh <- Progress{Index: len(stockSignals), StockCode: stockSignals[len(stockSignals)-1].StockCode, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 		} else {
 			msgHeader.Reset()
 			msgHeader.WriteString("❌ Tidak ditemukan sinyal BUY hari ini.")
 			msgFooter := `
 
-Coba lagi besok atau gunakan filter /analyze untuk menemukan peluang baru.
+Coba lagi nanti atau gunakan filter /analyze untuk menemukan peluang baru.
 			
 			`
 			buyListResultMsg.WriteString(msgFooter)
-			progressCh <- Progress{Index: len(stocks), StockCode: stocks[len(stocks)-1].Code, Content: buyListResultMsg.String(), Header: msgHeader.String()}
+			progressCh <- Progress{Index: len(stockSignals), StockCode: stockSignals[len(stockSignals)-1].StockCode, Content: buyListResultMsg.String(), Header: msgHeader.String()}
 		}
 
 		close(progressCh)
