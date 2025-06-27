@@ -30,6 +30,7 @@ type StockService interface {
 	RequestStockPositionMonitoring(ctx context.Context, param *models.RequestStockPositionMonitoring) error
 	RequestStockAnalyzer(ctx context.Context, param *models.RequestStockAnalyzer) error
 	GetTopNewsGlobal(ctx context.Context, limit int, age int) ([]models.TopNewsCustomResult, error)
+	GetStockPositionWithHistoryMonitoring(ctx context.Context, param models.StockPositionQueryParam) (*models.StockPositionEntity, error)
 }
 
 type stockService struct {
@@ -202,6 +203,45 @@ func (s *stockService) GetStockPosition(ctx context.Context, param models.StockP
 	}
 
 	return positions, nil
+}
+
+func (s *stockService) GetStockPositionWithHistoryMonitoring(ctx context.Context, param models.StockPositionQueryParam) (*models.StockPositionEntity, error) {
+	monitoring := param.Monitoring
+
+	if monitoring == nil {
+		return nil, fmt.Errorf("param monitoring not found")
+	}
+
+	param.Monitoring = nil
+	positions, err := s.stockPositionRepository.GetList(ctx, param)
+	if err != nil {
+		s.logger.Error("failed to get stock positions", logrus.Fields{
+			"error": err,
+		})
+		return nil, fmt.Errorf("failed to get stock positions: %w", err)
+	}
+
+	if len(positions) == 0 {
+		s.logger.Warn("position not found", logrus.Fields{
+			"telegram_id": param.TelegramIDs,
+			"id":          param.IDs,
+		})
+		return nil, fmt.Errorf("position not found")
+	}
+
+	positions[0].StockPositionMonitorings, err = s.stockPositionRepository.GetRecentDistinctMonitorings(ctx, models.StockPositionMonitoringQueryParam{
+		StockPositionID: positions[0].ID,
+		Limit:           monitoring.Limit,
+		ShowNewest:      monitoring.ShowNewest,
+	})
+	if err != nil {
+		s.logger.Error("failed to get stock position monitoring", logrus.Fields{
+			"error": err,
+		})
+		return nil, fmt.Errorf("failed to get stock position monitoring: %w", err)
+	}
+
+	return &positions[0], nil
 }
 
 func (s *stockService) DeleteStockPositionTelegramUser(ctx context.Context, telegramID int64, stockPositionID uint) error {

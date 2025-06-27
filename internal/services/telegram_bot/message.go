@@ -203,7 +203,7 @@ func (t *TelegramBotService) FormatMyPositionMessage(position models.StockPositi
 	)
 }
 
-func (t *TelegramBotService) FormatMyStockPositionMessage(position models.StockPositionEntity) string {
+func (t *TelegramBotService) FormatMyStockPositionMessage(position *models.StockPositionEntity) string {
 	now := time.Now()
 	age := int(now.Sub(position.BuyDate).Hours() / 24)
 	if age < 0 {

@@ -227,5 +227,5 @@ func (t *TelegramBotService) handleBtnBackDetailStockPositionWithParam(ctx conte
 		menu.Row(btnNews, btnBack),
 	)
 
-	return c.Edit(t.FormatMyStockPositionMessage(positions[0]), menu, telebot.ModeMarkdown)
+	return c.Edit(t.FormatMyStockPositionMessage(&positions[0]), menu, telebot.ModeMarkdown)
 }

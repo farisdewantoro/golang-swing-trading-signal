@@ -78,7 +78,7 @@ func (t *TelegramBotService) handleBtnToDetailStockPosition(ctx context.Context,
 		return c.Send(commonMessageInternalError)
 	}
 
-	positions, err := t.stockService.GetStockPosition(ctx, models.StockPositionQueryParam{
+	position, err := t.stockService.GetStockPositionWithHistoryMonitoring(ctx, models.StockPositionQueryParam{
 		TelegramIDs: []int64{userID},
 		IsActive:    true,
 		IDs:         []uint{uint(id)},
@@ -91,23 +91,23 @@ func (t *TelegramBotService) handleBtnToDetailStockPosition(ctx context.Context,
 		return c.Send(commonMessageInternalError)
 	}
 
-	if len(positions) == 0 {
+	if position == nil {
 		return c.Send("❌ Tidak ada posisi yang ditemukan.")
 	}
 
 	// Tombol analisa
 	menu := &telebot.ReplyMarkup{}
-	btn := menu.Data("🔍 Analisa", btnStockPositionMonitoring.Unique, positions[0].StockCode)
-	btnManage := menu.Data(btnManageStockPosition.Text, btnManageStockPosition.Unique, strconv.FormatUint(uint64(positions[0].ID), 10))
+	btn := menu.Data("🔍 Analisa", btnStockPositionMonitoring.Unique, position.StockCode)
+	btnManage := menu.Data(btnManageStockPosition.Text, btnManageStockPosition.Unique, strconv.FormatUint(uint64(position.ID), 10))
 	btnBack := menu.Data(btnBackStockPosition.Text, btnBackStockPosition.Unique)
-	btnNews := menu.Data(btnNewsStockPosition.Text, btnNewsStockPosition.Unique, positions[0].StockCode)
+	btnNews := menu.Data(btnNewsStockPosition.Text, btnNewsStockPosition.Unique, position.StockCode)
 
 	menu.Inline(
 		menu.Row(btn, btnManage),
 		menu.Row(btnNews, btnBack),
 	)
 
-	return c.Edit(t.FormatMyStockPositionMessage(positions[0]), menu, telebot.ModeMarkdown)
+	return c.Edit(t.FormatMyStockPositionMessage(position), menu, telebot.ModeMarkdown)
 }
 
 func (t *TelegramBotService) handleBtnBackStockPosition(ctx context.Context, c telebot.Context) error {

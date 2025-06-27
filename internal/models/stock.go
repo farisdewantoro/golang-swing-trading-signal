@@ -73,8 +73,9 @@ type StockPositionQueryParam struct {
 }
 
 type StockPositionMonitoringQueryParam struct {
-	Limit      *int  `json:"limit"`
-	ShowNewest *bool `json:"show_newest"` // If true, show only the newest monitoring
+	Limit           *int  `json:"limit"`
+	ShowNewest      *bool `json:"show_newest"` // If true, show only the newest monitoring
+	StockPositionID uint  `json:"stock_position_id"`
 }
 
 // StockNewsSummary represents a summary of news articles for a specific stock.
