@@ -18,11 +18,6 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 	var sb strings.Builder
 
 	unrealizedPnLPercentage := ((position.MarketPrice - position.BuyPrice) / position.BuyPrice) * 100
-	unrealizedPnLPercentageStr := fmt.Sprintf("(+%.2f)", unrealizedPnLPercentage)
-
-	if unrealizedPnLPercentage < 0 {
-		unrealizedPnLPercentageStr = fmt.Sprintf("(%.2f)", unrealizedPnLPercentage)
-	}
 
 	daysRemaining := utils.RemainingDays(position.MaxHoldingPeriodDays, position.BuyDate)
 	ageDays := int(time.Since(position.BuyDate).Hours() / 24)
@@ -40,7 +35,7 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 
 	sb.WriteString(fmt.Sprintf("\n📊 <b>Position Update: %s</b>\n", position.Symbol))
 	sb.WriteString(fmt.Sprintf("💰 Buy: $%d\n", int(position.BuyPrice)))
-	sb.WriteString(fmt.Sprintf("📌 Last Price: $%d %s\n", int(position.MarketPrice), unrealizedPnLPercentageStr))
+	sb.WriteString(fmt.Sprintf("📌 Last Price: $%d %s\n", int(position.MarketPrice), utils.FormatPercentage(unrealizedPnLPercentage)))
 	sb.WriteString(fmt.Sprintf("🎯 TP: $%d | SL: $%d | RR: %.2f\n", int(position.TargetPrice), int(position.CutLoss), position.RiskRewardRatio))
 	sb.WriteString(fmt.Sprintf("📈 Age: %d days | Remaining: %d days\n\n", ageDays, daysRemaining))
 
@@ -49,8 +44,8 @@ func (t *TelegramBotService) FormatPositionMonitoringMessage(position *models.Po
 	loss := float64(position.BuyPrice-position.ExitCutLossPrice) / float64(position.BuyPrice) * 100
 	sb.WriteString("💡 <b>Recommendation:</b>\n")
 	sb.WriteString(fmt.Sprintf(" • Action: %s %s\n", iconAction, position.Action))
-	sb.WriteString(fmt.Sprintf(" • Target Price: $%d (%+.2f%%)\n", int(position.ExitTargetPrice), gain))
-	sb.WriteString(fmt.Sprintf(" • Stop Loss: $%d (%-.2f%%)\n", int(position.ExitCutLossPrice), loss))
+	sb.WriteString(fmt.Sprintf(" • Target Price: $%d %s\n", int(position.ExitTargetPrice), utils.FormatPercentage(gain)))
+	sb.WriteString(fmt.Sprintf(" • Stop Loss: $%d %s\n", int(position.ExitCutLossPrice), utils.FormatPercentage(loss)))
 	sb.WriteString(fmt.Sprintf(" • Risk/Reward Ratio: %.2f\n", position.ExitRiskRewardRatio))
 	sb.WriteString(fmt.Sprintf(" • Confidence: %d%%\n", position.ConfidenceLevel))
 	sb.WriteString(fmt.Sprintf(" • Technical Score: %d\n\n", position.TechnicalScore))
@@ -102,8 +97,8 @@ func (t *TelegramBotService) FormatAnalysisMessage(analysis *models.IndividualAn
 		sb.WriteString("<b>Trade Plan</b>\n")
 		sb.WriteString(fmt.Sprintf("📌 Last Price: %d (%s)\n", int(analysis.MarketPrice), analysis.AnalysisDate.Format("01-02 15:04")))
 		sb.WriteString(fmt.Sprintf("💵 Buy Area: $%d\n", int(analysis.BuyPrice)))
-		sb.WriteString(fmt.Sprintf("🎯 Target Price: $%d (%+.2f%%)\n", int(analysis.TargetPrice), gain))
-		sb.WriteString(fmt.Sprintf("🛡 Cut Loss: $%d (%+.2f%%)\n", int(analysis.CutLoss), loss))
+		sb.WriteString(fmt.Sprintf("🎯 Target Price: $%d %s\n", int(analysis.TargetPrice), utils.FormatPercentage(gain)))
+		sb.WriteString(fmt.Sprintf("🛡 Cut Loss: $%d %s\n", int(analysis.CutLoss), utils.FormatPercentage(loss)))
 		sb.WriteString(fmt.Sprintf("⚖️ Risk/Reward Ratio: %.2f\n", analysis.RiskRewardRatio))
 		sb.WriteString(fmt.Sprintf("<i>⏳ Estimasi Waktu Profit: %d hari kerja</i>\n", analysis.EstimatedHoldingDays))
 	} else if analysis.Action == "HOLD" {
@@ -178,57 +173,6 @@ func (t *TelegramBotService) FormatResultSetPositionMessage(data *models.Request
 	return sb.String()
 }
 
-func (t *TelegramBotService) FormatMyPositionMessage(position models.StockPositionEntity, index, total int) string {
-	now := time.Now()
-	age := int(now.Sub(position.BuyDate).Hours() / 24)
-	if age < 0 {
-		age = 0
-	}
-	remaining := position.MaxHoldingPeriodDays - age
-	if remaining < 0 {
-		remaining = 0
-	}
-
-	gain := float64(position.TakeProfitPrice-position.BuyPrice) / float64(position.BuyPrice) * 100
-	loss := float64(position.BuyPrice-position.StopLossPrice) / float64(position.BuyPrice) * 100
-
-	alertStatus := "✅ Aktif"
-	if position.PriceAlert == nil || !*position.PriceAlert {
-		alertStatus = "❌ Tidak Aktif"
-	}
-
-	monitorStatus := "✅ Aktif"
-	if position.MonitorPosition == nil || !*position.MonitorPosition {
-		monitorStatus = "❌ Tidak Aktif"
-	}
-
-	return fmt.Sprintf(
-		"```\n📊 (%d/%d) Monitoring Saham\n\n"+
-			"📦 %s\n"+
-			"──────────────────────\n"+
-			"💰 Harga Beli   : %.2f\n"+
-			"🎯 Target Jual  : %.2f (+%.1f%%)\n"+
-			"🛑 Stop Loss    : %.2f (−%.1f%%)\n"+
-			"📅 Tgl Beli     : %s\n"+
-			"⏳ Umur Posisi  : %d hari\n"+
-			"⌛ Sisa Waktu   : %d hari\n"+
-			"──────────────────────\n"+
-			"🔔 Alert        : %s\n"+
-			"📡 Monitoring   : %s\n"+
-			"──────────────────────\n```",
-		index, total,
-		position.StockCode,
-		position.BuyPrice,
-		position.TakeProfitPrice, gain,
-		position.StopLossPrice, loss,
-		position.BuyDate.Format("02 Jan 2006"),
-		age,
-		remaining,
-		alertStatus,
-		monitorStatus,
-	)
-}
-
 func (t *TelegramBotService) FormatMyStockPositionMessage(position *models.StockPositionEntity) string {
 	now := time.Now()
 	age := int(now.Sub(position.BuyDate).Hours() / 24)
@@ -259,8 +203,8 @@ func (t *TelegramBotService) FormatMyStockPositionMessage(position *models.Stock
 	sb.WriteString(fmt.Sprintf("📦 %s\n", position.StockCode))
 	sb.WriteString("────────────────────────────────\n")
 	sb.WriteString(fmt.Sprintf("💰 Harga Beli   : %.2f\n", position.BuyPrice))
-	sb.WriteString(fmt.Sprintf("🎯 Target Jual  : %.2f (+%.1f%%)\n", position.TakeProfitPrice, gain))
-	sb.WriteString(fmt.Sprintf("🛑 Stop Loss    : %.2f (−%.1f%%)\n", position.StopLossPrice, loss))
+	sb.WriteString(fmt.Sprintf("🎯 Target Jual  : %.2f %s\n", position.TakeProfitPrice, utils.FormatPercentage(gain)))
+	sb.WriteString(fmt.Sprintf("🛑 Stop Loss    : %.2f %s\n", position.StopLossPrice, utils.FormatPercentage(loss)))
 	sb.WriteString(fmt.Sprintf("📅 Tgl Beli     : %s\n", position.BuyDate.Format("02 Jan 2006")))
 	sb.WriteString(fmt.Sprintf("⏳ Umur Posisi  : %d hari\n", age))
 	sb.WriteString(fmt.Sprintf("⌛ Sisa Waktu   : %d hari\n", remaining))
@@ -324,11 +268,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 		}
 
 		pnl := (dataStockMonitoring.MarketPrice - dataStockMonitoring.BuyPrice) / dataStockMonitoring.BuyPrice * 100
-		pnlText := fmt.Sprintf("%.2f%%", pnl)
-		if pnl > 0 {
-			pnlText = fmt.Sprintf("+%.2f%%", pnl)
-		}
-		sb.WriteString(fmt.Sprintf(" 📈 PnL: %s\n", pnlText))
+		sb.WriteString(fmt.Sprintf(" 📈 PnL: %s\n", utils.FormatPercentage(pnl)))
 		sb.WriteString(fmt.Sprintf(" %s %s | Confidence: %d/100\n", iconAction, dataStockMonitoring.Action, int(dataStockMonitoring.ConfidenceLevel)))
 
 	}
