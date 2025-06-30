@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"runtime"
 	"runtime/debug"
@@ -76,4 +77,11 @@ func ShouldStopCtx(ctx context.Context, log *logrus.Logger) (bool, error) {
 	default:
 		return false, nil
 	}
+}
+
+func FormatPercentage(value float64) string {
+	if value >= 0 {
+		return fmt.Sprintf("+%.1f%%", value)
+	}
+	return fmt.Sprintf("-%.1f%%", -value)
 }
