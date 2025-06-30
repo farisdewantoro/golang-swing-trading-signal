@@ -41,8 +41,10 @@ func (s *stockSignalRepository) GetLatestSignal(ctx context.Context, param model
 		filterParams = append(filterParams, param.StockCode)
 	}
 
+	basedQuery += " WHERE ss.deleted_at IS NULL"
+
 	if len(filterQuery) > 0 {
-		basedQuery += " WHERE " + strings.Join(filterQuery, " AND ")
+		basedQuery += " AND " + strings.Join(filterQuery, " AND ")
 	}
 
 	if err := s.db.WithContext(ctx).Debug().Raw(basedQuery+" "+orderQuery, filterParams...).Scan(&stockSignals).Error; err != nil {

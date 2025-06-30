@@ -56,8 +56,10 @@ func (s *stockPositionMonitoringRepository) GetLatestMonitoring(ctx context.Cont
 		params = append(params, param.AfterTime)
 	}
 
+	baseQuery += " WHERE spm.deleted_at IS NULL"
+
 	if len(qFilter) > 0 {
-		baseQuery += " WHERE " + strings.Join(qFilter, " AND ")
+		baseQuery += " AND " + strings.Join(qFilter, " AND ")
 	}
 	if param.Limit > 0 {
 		defaultLimit = param.Limit
