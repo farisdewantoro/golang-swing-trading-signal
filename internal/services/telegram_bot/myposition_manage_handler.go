@@ -65,10 +65,12 @@ func (t *TelegramBotService) handleBtnManageStockPosition(ctx context.Context, c
 
 	// Tombol kembali
 	btnBack := keyboard.Data(btnBackActionStockPosition.Text, btnBackActionStockPosition.Unique, stockPositionID)
+	btnAdjustTarget := keyboard.Data(btnAdjustTargetPosition.Text, btnAdjustTargetPosition.Unique, stockPositionID)
 
 	// Susun tombol: satu per baris
 	keyboard.Inline(
 		keyboard.Row(btnExit),
+		keyboard.Row(btnAdjustTarget),
 		keyboard.Row(btnDelete),
 		keyboard.Row(btnAlert),
 		keyboard.Row(btnMonitor),

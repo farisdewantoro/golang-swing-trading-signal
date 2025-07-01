@@ -539,7 +539,7 @@ func (t *TelegramBotService) showProgressBarWithChannel(
 func (t *TelegramBotService) formatMessageBuyList(index int, analysis *models.IndividualAnalysisResponseMultiTimeframe) *strings.Builder {
 	profitPercentage := ((analysis.TargetPrice - analysis.BuyPrice) / analysis.BuyPrice) * 100
 	sb := &strings.Builder{}
-	sb.WriteString(fmt.Sprintf("\n• `$%s` - _(%s)_\n", analysis.Symbol, analysis.AnalysisDate.Format("02/15 15:04")))
+	sb.WriteString(fmt.Sprintf("\n• `$%s` - _(%s)_\n", analysis.Symbol, analysis.AnalysisDate.Format("01/02 15:04")))
 	sb.WriteString(fmt.Sprintf("   🔖 Last Price: %d\n", int(analysis.MarketPrice)))
 	sb.WriteString(fmt.Sprintf("   💵 Buy: %d 📊 Score: %d\n", int(analysis.BuyPrice), ((analysis.ConfidenceLevel + analysis.TechnicalScore) / 2)))
 	sb.WriteString(fmt.Sprintf("   🎯 TP: %d  🛡 SL: %d\n", int(analysis.TargetPrice), int(analysis.CutLoss)))

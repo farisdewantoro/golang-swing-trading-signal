@@ -61,6 +61,8 @@ type StockPositionUpdateRequest struct {
 	ExitPrice            *float64   `json:"exit_price"`
 	ExitDate             *time.Time `json:"exit_date"`
 	IsActive             *bool      `json:"is_active"`
+	TargetPrice          *float64   `json:"target_price"`
+	StopLossPrice        *float64   `json:"stop_loss_price"`
 }
 
 type StockPositionQueryParam struct {

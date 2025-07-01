@@ -54,24 +54,30 @@ const (
 
 	StateWaitingNewsFindSymbol                  = 40
 	StateWaitingNewsFindSendSummaryConfirmation = 41
+
+	StateWaitingAdjustTargetPositionInputTargetPrice   = 50
+	StateWaitingAdjustTargetPositionInputStopLossPrice = 51
+	StateWaitingAdjustTargetPositionMaxHoldingDays     = 52
+	StateWaitingAdjustTargetPositionConfirm            = 53
 )
 
 type TelegramBotService struct {
-	bot                      *telebot.Bot
-	telegramRateLimiter      *ratelimit.TelegramRateLimiter
-	config                   *config.TelegramConfig
-	tradingConfig            *config.TradingConfig
-	logger                   *logrus.Logger
-	analyzer                 *trading_analysis.Analyzer
-	stockService             stocks.StockService
-	router                   *gin.Engine
-	userStates               map[int64]int                                 // UserID -> State
-	userPositionData         map[int64]*models.RequestSetPositionData      // UserID -> Data for /setposition
-	userAnalysisPositionData map[int64]*models.RequestAnalysisPositionData // UserID -> Data for /analyze
-	userExitPositionData     map[int64]*models.RequestExitPositionData     // UserID -> Data for /exitposition
-	mu                       sync.Mutex                                    // Mutex for thread-safe operations
-	userCancelFuncs          map[int64]context.CancelFunc                  // key: telegram user ID atau chat ID
-	ctx                      context.Context
+	bot                          *telebot.Bot
+	telegramRateLimiter          *ratelimit.TelegramRateLimiter
+	config                       *config.TelegramConfig
+	tradingConfig                *config.TradingConfig
+	logger                       *logrus.Logger
+	analyzer                     *trading_analysis.Analyzer
+	stockService                 stocks.StockService
+	router                       *gin.Engine
+	userStates                   map[int64]int                                     // UserID -> State
+	userPositionData             map[int64]*models.RequestSetPositionData          // UserID -> Data for /setposition
+	userAnalysisPositionData     map[int64]*models.RequestAnalysisPositionData     // UserID -> Data for /analyze
+	userExitPositionData         map[int64]*models.RequestExitPositionData         // UserID -> Data for /exitposition
+	userAdjustTargetPositionData map[int64]*models.RequestAdjustTargetPositionData // UserID -> Data for /adjusttargetposition
+	mu                           sync.Mutex                                        // Mutex for thread-safe operations
+	userCancelFuncs              map[int64]context.CancelFunc                      // key: telegram user ID atau chat ID
+	ctx                          context.Context
 }
 
 func NewTelegramBotService(
@@ -86,21 +92,22 @@ func NewTelegramBotService(
 	router *gin.Engine) *TelegramBotService {
 
 	service := &TelegramBotService{
-		bot:                      bot,
-		telegramRateLimiter:      telegramRateLimiter,
-		config:                   cfg,
-		tradingConfig:            tradingConfig,
-		logger:                   logger,
-		analyzer:                 analyzer,
-		stockService:             stockService,
-		router:                   router,
-		userStates:               make(map[int64]int),
-		userPositionData:         make(map[int64]*models.RequestSetPositionData),
-		userAnalysisPositionData: make(map[int64]*models.RequestAnalysisPositionData),
-		userExitPositionData:     make(map[int64]*models.RequestExitPositionData),
-		mu:                       sync.Mutex{},
-		userCancelFuncs:          make(map[int64]context.CancelFunc),
-		ctx:                      ctx,
+		bot:                          bot,
+		telegramRateLimiter:          telegramRateLimiter,
+		config:                       cfg,
+		tradingConfig:                tradingConfig,
+		logger:                       logger,
+		analyzer:                     analyzer,
+		stockService:                 stockService,
+		router:                       router,
+		userStates:                   make(map[int64]int),
+		userPositionData:             make(map[int64]*models.RequestSetPositionData),
+		userAnalysisPositionData:     make(map[int64]*models.RequestAnalysisPositionData),
+		userExitPositionData:         make(map[int64]*models.RequestExitPositionData),
+		userAdjustTargetPositionData: make(map[int64]*models.RequestAdjustTargetPositionData),
+		mu:                           sync.Mutex{},
+		userCancelFuncs:              make(map[int64]context.CancelFunc),
+		ctx:                          ctx,
 	}
 
 	// Register handlers
@@ -189,6 +196,7 @@ func (t *TelegramBotService) ResetUserState(userID int64) {
 	delete(t.userPositionData, userID)
 	delete(t.userAnalysisPositionData, userID)
 	delete(t.userExitPositionData, userID)
+	delete(t.userAdjustTargetPositionData, userID)
 
 	if cancel, exists := t.userCancelFuncs[userID]; exists {
 		cancel()

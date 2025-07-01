@@ -307,6 +307,14 @@ func (s *stockService) UpdateStockPositionTelegramUser(ctx context.Context, tele
 		newUpdate.IsActive = update.IsActive
 	}
 
+	if update.TargetPrice != nil {
+		newUpdate.TakeProfitPrice = *update.TargetPrice
+	}
+
+	if update.StopLossPrice != nil {
+		newUpdate.StopLossPrice = *update.StopLossPrice
+	}
+
 	return s.stockPositionRepository.Update(ctx, &newUpdate)
 }
 

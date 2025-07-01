@@ -25,7 +25,7 @@ func (t *TelegramBotService) handleBtnDeleteMessage(ctx context.Context, c teleb
 func (t *TelegramBotService) handleCancel(c telebot.Context) error {
 	userID := c.Sender().ID
 
-	t.ResetUserState(userID)
+	defer t.ResetUserState(userID)
 
 	// Check if user is in any conversation state
 	if state, ok := t.userStates[userID]; ok && state != StateIdle {

@@ -81,3 +81,11 @@ type RequestExitPositionData struct {
 	ExitDate        time.Time
 	StockPositionID uint
 }
+
+type RequestAdjustTargetPositionData struct {
+	StockPositionID uint
+	TargetPrice     float64
+	StopLossPrice   float64
+	MaxHoldingDays  int
+	StockCode       string
+}
