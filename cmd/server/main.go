@@ -18,6 +18,7 @@ import (
 	"golang-swing-trading-signal/internal/config"
 	"golang-swing-trading-signal/internal/repository"
 	"golang-swing-trading-signal/internal/services/gemini_ai"
+	"golang-swing-trading-signal/internal/services/jobs"
 	"golang-swing-trading-signal/internal/services/stocks"
 	"golang-swing-trading-signal/internal/services/telegram_bot"
 	"golang-swing-trading-signal/internal/services/trading_analysis"
@@ -89,6 +90,7 @@ func main() {
 	userRepo := repository.NewUserRepository(db.DB)
 	unitOfWork := repository.NewUnitOfWork(db.DB)
 	stockSignalRepo := repository.NewStockSignalRepository(db.DB)
+	jobsRepository := repository.NewJobsRepository(db.DB)
 	stockPositionMonitoringRepo := repository.NewStockPositionMonitoringRepository(db.DB)
 	genClient, err := genai.NewClient(context.Background(), &genai.ClientConfig{
 		APIKey: cfg.Gemini.APIKey,
@@ -129,7 +131,8 @@ func main() {
 	telegramRateLimiter.StartCleanupExpired(ctxCancel)
 
 	stockService := stocks.NewStockService(cfg, stockRepo, stockNewsSummaryRepo, stockPositionRepo, userRepo, logger, unitOfWork, stockNewsRepo, stockSignalRepo, stockPositionMonitoringRepo, redisClient)
-	telegramService := telegram_bot.NewTelegramBotService(&cfg.Telegram, ctxCancel, &cfg.Trading, logger, analyzer, stockService, bot, telegramRateLimiter, router)
+	jobService := jobs.NewJobService(cfg, logger, jobsRepository)
+	telegramService := telegram_bot.NewTelegramBotService(&cfg.Telegram, ctxCancel, &cfg.Trading, logger, analyzer, stockService, jobService, bot, telegramRateLimiter, router)
 
 	// Initialize handlers
 	tradingHandler := handlers.NewTradingHandler(analyzer, telegramService, logger, cfg)

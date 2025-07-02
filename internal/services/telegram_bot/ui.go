@@ -28,6 +28,9 @@ var (
 	btnNewsConfirmSendSummary      telebot.Btn = telebot.Btn{Unique: "btn_news_confirm_send_summary"}
 	btnAdjustTargetPosition        telebot.Btn = telebot.Btn{Text: "🎯 Atur Target", Unique: "btn_adjust_target_position"}
 	btnAdjustTargetPositionConfirm telebot.Btn = telebot.Btn{Text: "✅ Konfirmasi", Unique: "btn_adjust_target_position_confirm"}
+	btnDetailJob                   telebot.Btn = telebot.Btn{Unique: "btn_detail_job"}
+	btnActionBackToJobList         telebot.Btn = telebot.Btn{Text: "🔙 Kembali", Unique: "btn_action_back_to_job_list"}
+	btnActionRunJob                telebot.Btn = telebot.Btn{Text: "🚀 Jalankan", Unique: "btn_action_run_job"}
 )
 
 var (

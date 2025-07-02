@@ -16,6 +16,7 @@ import (
 
 	"golang-swing-trading-signal/internal/config"
 	"golang-swing-trading-signal/internal/models"
+	"golang-swing-trading-signal/internal/services/jobs"
 	"golang-swing-trading-signal/internal/services/stocks"
 	"golang-swing-trading-signal/internal/services/trading_analysis"
 	"golang-swing-trading-signal/pkg/ratelimit"
@@ -69,6 +70,7 @@ type TelegramBotService struct {
 	logger                       *logrus.Logger
 	analyzer                     *trading_analysis.Analyzer
 	stockService                 stocks.StockService
+	jobService                   jobs.JobService
 	router                       *gin.Engine
 	userStates                   map[int64]int                                     // UserID -> State
 	userPositionData             map[int64]*models.RequestSetPositionData          // UserID -> Data for /setposition
@@ -87,6 +89,7 @@ func NewTelegramBotService(
 	logger *logrus.Logger,
 	analyzer *trading_analysis.Analyzer,
 	stockService stocks.StockService,
+	jobService jobs.JobService,
 	bot *telebot.Bot,
 	telegramRateLimiter *ratelimit.TelegramRateLimiter,
 	router *gin.Engine) *TelegramBotService {
@@ -99,6 +102,7 @@ func NewTelegramBotService(
 		logger:                       logger,
 		analyzer:                     analyzer,
 		stockService:                 stockService,
+		jobService:                   jobService,
 		router:                       router,
 		userStates:                   make(map[int64]int),
 		userPositionData:             make(map[int64]*models.RequestSetPositionData),

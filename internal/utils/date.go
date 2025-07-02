@@ -38,6 +38,16 @@ func PrettyDate(date time.Time) string {
 	)
 }
 
+func PrettyDateWithIcon(date time.Time) string {
+	return fmt.Sprintf("%02d %s %d - %02d:%02d WIB",
+		date.Day(),
+		GetIndonesianMonth(date.Month()),
+		date.Year(),
+		date.Hour(),
+		date.Minute(),
+	)
+}
+
 func GetIndonesianMonth(month time.Month) string {
 	months := map[time.Month]string{
 		time.January:   "Januari",

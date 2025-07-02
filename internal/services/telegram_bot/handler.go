@@ -21,6 +21,7 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle("/myposition", t.WithContext(t.handleMyPosition), t.IsOnConversationMiddleware())
 	t.bot.Handle("/news", t.WithContext(t.handleNews), t.IsOnConversationMiddleware())
 	t.bot.Handle("/report", t.WithContext(t.handleReport), t.IsOnConversationMiddleware())
+	t.bot.Handle("/scheduler", t.WithContext(t.handleScheduler))
 
 	// Inline button handlers
 
@@ -51,7 +52,9 @@ func (t *TelegramBotService) registerHandlers() {
 	t.bot.Handle(&btnActionTopNews, t.WithContext(t.handleBtnActionTopNews))
 	t.bot.Handle(&btnAdjustTargetPosition, t.WithContext(t.handleBtnAdjustTargetPosition))
 	t.bot.Handle(&btnAdjustTargetPositionConfirm, t.WithContext(t.handleBtnAdjustTargetPositionConfirm))
-
+	t.bot.Handle(&btnDetailJob, t.WithContext(t.handleBtnDetailJob))
+	t.bot.Handle(&btnActionBackToJobList, t.WithContext(t.handleBtnActionBackToJobList))
+	t.bot.Handle(&btnActionRunJob, t.WithContext(t.handleBtnActionRunJob))
 	// Handle incoming text messages for conversations
 	t.bot.Handle(telebot.OnText, t.WithContext(t.handleConversation))
 
