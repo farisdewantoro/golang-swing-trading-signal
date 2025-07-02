@@ -28,6 +28,10 @@ func GetNowWithOnlyHour() time.Time {
 	)
 }
 
+func TimeToWIB(time time.Time) time.Time {
+	return time.In(TimeNowWIB().Location())
+}
+
 func PrettyDate(date time.Time) string {
 	return fmt.Sprintf("🗓️ %02d %s %d - %02d:%02d WIB",
 		date.Day(),

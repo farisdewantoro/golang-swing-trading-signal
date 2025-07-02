@@ -103,12 +103,12 @@ func (t *TelegramBotService) handleBtnDetailJob(ctx context.Context, c telebot.C
 
 	msg.WriteString("📅 Jadwal: \n")
 	if job.Schedules[0].LastExecution.Valid {
-		msg.WriteString(fmt.Sprintf(" • Last Execution : %s\n", utils.PrettyDateWithIcon(job.Schedules[0].LastExecution.Time)))
+		msg.WriteString(fmt.Sprintf(" • Last Execution : %s\n", utils.PrettyDateWithIcon(utils.TimeToWIB(job.Schedules[0].LastExecution.Time))))
 	} else {
 		msg.WriteString(" • Last Execution : Tidak ada\n")
 	}
 	if job.Schedules[0].NextExecution.Valid {
-		msg.WriteString(fmt.Sprintf(" • Next Execution : %s\n", utils.PrettyDateWithIcon(job.Schedules[0].NextExecution.Time)))
+		msg.WriteString(fmt.Sprintf(" • Next Execution : %s\n", utils.PrettyDateWithIcon(utils.TimeToWIB(job.Schedules[0].NextExecution.Time))))
 	} else {
 		msg.WriteString(" • Next Execution : Tidak ada\n")
 	}
@@ -132,11 +132,11 @@ func (t *TelegramBotService) handleBtnDetailJob(ctx context.Context, c telebot.C
 			continue
 		}
 		if !history.CompletedAt.Valid {
-			msg.WriteString(fmt.Sprintf("%d. %s %s - %s\n", idx+1, icon, history.CreatedAt.Format("01/02 15:04"), strings.ToUpper(string(history.Status))))
+			msg.WriteString(fmt.Sprintf("%d. %s %s - %s\n", idx+1, icon, utils.TimeToWIB(history.CreatedAt).Format("01/02 15:04"), strings.ToUpper(string(history.Status))))
 			continue
 		}
 		duration := history.CompletedAt.Time.Sub(history.StartedAt)
-		msg.WriteString(fmt.Sprintf("%d. %s %s - %s (%.1fs)\n", idx+1, icon, history.CreatedAt.Format("01/02 15:04"), strings.ToUpper(string(history.Status)), duration.Seconds()))
+		msg.WriteString(fmt.Sprintf("%d. %s %s - %s (%.1fs)\n", idx+1, icon, utils.TimeToWIB(history.CreatedAt).Format("01/02 15:04"), strings.ToUpper(string(history.Status)), duration.Seconds()))
 	}
 
 	menu := &telebot.ReplyMarkup{}
