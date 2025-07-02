@@ -83,6 +83,8 @@ Saya di sini untuk membantu kamu memantau saham dan mencari peluang terbaik dari
 📊 /myposition - Lihat semua posisi yang sedang dipantau  
 📰 /news - Lihat berita terkini, alert berita penting saham, ringkasan berita
 💰 /report Melihat ringkasan hasil trading kamu berdasarkan posisi yang sudah kamu entry dan exit.
+🔄 /scheduler	- Lihat status scheduler & jalankan job secara manual  
+
 
 💡 Info & Bantuan:
 🆘 /help - Lihat panduan penggunaan lengkap  
@@ -111,6 +113,7 @@ Berikut daftar perintah yang bisa kamu gunakan:
 /news - Lihat berita terkini, alert berita penting saham, ringkasan berita
 /cancel - Batalkan perintah yang sedang berjalan
 /report - Melihat ringkasan hasil trading kamu berdasarkan posisi yang sudah kamu entry dan exit.
+/scheduler	- Lihat status scheduler & jalankan job secara manual  
 
 💡 *Tips Penggunaan:*
 1. Gunakan /analyze untuk analisa cepat atau mendalam (bisa juga langsung kirim kode saham, misalnya: 'BBCA')  
