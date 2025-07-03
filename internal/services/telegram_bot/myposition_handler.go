@@ -31,11 +31,23 @@ func (t *TelegramBotService) handleMyPositionWithEditMessage(ctx context.Context
 		return c.Send("❌ Tidak ada saham aktif yang kamu set position saat ini.")
 	}
 
+	stockCodes := []string{}
+
+	for _, position := range positions {
+		stockCodes = append(stockCodes, position.StockCode)
+	}
+
+	lastMarketPriceMap, err := t.getLastMarketPrice(ctx, stockCodes)
+	if err != nil {
+		t.logger.WithError(err).Error("Failed to get last market prices")
+		return c.Send(commonMessageInternalError)
+	}
+
 	sb := strings.Builder{}
 	header := `📊 Posisi Saham yang Kamu Pantau Saat ini:`
 	sb.WriteString(header)
 	sb.WriteString("\n")
-	body := t.FormatMyPositionListMessage(positions)
+	body := t.FormatMyPositionListMessage(positions, lastMarketPriceMap)
 	sb.WriteString(body)
 	footer := "\n👉 Tekan tombol di bawah untuk melihat detail lengkap atau mengelola posisi."
 	sb.WriteString(footer)

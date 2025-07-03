@@ -240,10 +240,15 @@ func (t *TelegramBotService) FormatMyStockPositionMessage(position *models.Stock
 	return sb.String()
 }
 
-func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.StockPositionEntity) string {
+func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.StockPositionEntity, lastMarketPriceMap map[string]models.RedisLastPrice) string {
 	var sb strings.Builder
 
 	for _, position := range positions {
+		var (
+			lastMarketPrice   int
+			lastMarketPriceAt time.Time
+		)
+
 		sb.WriteString(fmt.Sprintf("\n• %s", position.StockCode))
 		sb.WriteString(fmt.Sprintf("\n🎯 Buy: %d | TP: %d | SL: %d\n", int(position.BuyPrice), int(position.TakeProfitPrice), int(position.StopLossPrice)))
 		if len(position.StockPositionMonitorings) == 0 {
@@ -257,7 +262,15 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf(" 💰 Last Price: %d (%s)\n", int(dataStockMonitoring.MarketPrice), dataStockMonitoring.AnalysisDate.Format("01/02 15:04")))
+		if lastMarketPriceData, ok := lastMarketPriceMap[position.StockCode]; ok && lastMarketPriceData.Price > 0 {
+			lastMarketPrice = int(lastMarketPriceData.Price)
+			lastMarketPriceAt = time.Unix(lastMarketPriceData.Timestamp, 0)
+		} else {
+			lastMarketPrice = int(dataStockMonitoring.MarketPrice)
+			lastMarketPriceAt = dataStockMonitoring.AnalysisDate
+		}
+
+		sb.WriteString(fmt.Sprintf(" 💰 Last Price: %d (%s)\n", lastMarketPrice, lastMarketPriceAt.Format("01/02 15:04")))
 
 		iconAction := "🔴"
 		switch dataStockMonitoring.Action {
@@ -270,7 +283,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 		pnl := (dataStockMonitoring.MarketPrice - dataStockMonitoring.BuyPrice) / dataStockMonitoring.BuyPrice * 100
 		sb.WriteString(fmt.Sprintf(" 📈 PnL: %s\n", utils.FormatPercentage(pnl)))
 		sb.WriteString(fmt.Sprintf(" %s %s | Confidence: %d/100\n", iconAction, dataStockMonitoring.Action, int(dataStockMonitoring.ConfidenceLevel)))
-
+		sb.WriteString(fmt.Sprintf(" <i>🗓️ Last Analysis: %s</i>\n", dataStockMonitoring.AnalysisDate.Format("02 Jan 15:04")))
 	}
 	return sb.String()
 }
@@ -646,7 +659,7 @@ func (t *TelegramBotService) formatMessageReport(positions []models.StockPositio
 		} else {
 			countLose++
 		}
-		sbBody.WriteString(fmt.Sprintf("\n- $%s <i>(%s-%s)</i>", position.StockCode, position.BuyDate.Format("01/02"), position.ExitDate.Format("01/02")))
+		sbBody.WriteString(fmt.Sprintf("\n- $%s <i>(%s-%s)</i>", position.StockCode, position.BuyDate.Format("01/02 15:04"), position.ExitDate.Format("01/02 15:04")))
 		sbBody.WriteString(fmt.Sprintf("\n		%s PnL: %+.2f%%", icon, pnl))
 		sbBody.WriteString(fmt.Sprintf("\n		💰 Buy: %d | Exit: %d", int(position.BuyPrice), int(*position.ExitPrice)))
 	}

@@ -132,7 +132,7 @@ func main() {
 
 	stockService := stocks.NewStockService(cfg, stockRepo, stockNewsSummaryRepo, stockPositionRepo, userRepo, logger, unitOfWork, stockNewsRepo, stockSignalRepo, stockPositionMonitoringRepo, redisClient)
 	jobService := jobs.NewJobService(cfg, logger, jobsRepository)
-	telegramService := telegram_bot.NewTelegramBotService(&cfg.Telegram, ctxCancel, &cfg.Trading, logger, analyzer, stockService, jobService, bot, telegramRateLimiter, router)
+	telegramService := telegram_bot.NewTelegramBotService(&cfg.Telegram, ctxCancel, &cfg.Trading, logger, analyzer, stockService, jobService, redisClient, bot, telegramRateLimiter, router)
 
 	// Initialize handlers
 	tradingHandler := handlers.NewTradingHandler(analyzer, telegramService, logger, cfg)

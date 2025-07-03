@@ -20,6 +20,7 @@ import (
 	"golang-swing-trading-signal/internal/services/stocks"
 	"golang-swing-trading-signal/internal/services/trading_analysis"
 	"golang-swing-trading-signal/pkg/ratelimit"
+	"golang-swing-trading-signal/pkg/redis"
 )
 
 // Conversation states
@@ -71,6 +72,7 @@ type TelegramBotService struct {
 	analyzer                     *trading_analysis.Analyzer
 	stockService                 stocks.StockService
 	jobService                   jobs.JobService
+	redisClient                  *redis.Client
 	router                       *gin.Engine
 	userStates                   map[int64]int                                     // UserID -> State
 	userPositionData             map[int64]*models.RequestSetPositionData          // UserID -> Data for /setposition
@@ -90,6 +92,7 @@ func NewTelegramBotService(
 	analyzer *trading_analysis.Analyzer,
 	stockService stocks.StockService,
 	jobService jobs.JobService,
+	redisClient *redis.Client,
 	bot *telebot.Bot,
 	telegramRateLimiter *ratelimit.TelegramRateLimiter,
 	router *gin.Engine) *TelegramBotService {
@@ -103,6 +106,7 @@ func NewTelegramBotService(
 		analyzer:                     analyzer,
 		stockService:                 stockService,
 		jobService:                   jobService,
+		redisClient:                  redisClient,
 		router:                       router,
 		userStates:                   make(map[int64]int),
 		userPositionData:             make(map[int64]*models.RequestSetPositionData),
