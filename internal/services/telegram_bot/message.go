@@ -245,7 +245,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 
 	for _, position := range positions {
 		var (
-			lastMarketPrice   int
+			lastMarketPrice   float64
 			lastMarketPriceAt time.Time
 		)
 
@@ -263,14 +263,14 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 		}
 
 		if lastMarketPriceData, ok := lastMarketPriceMap[position.StockCode]; ok && lastMarketPriceData.Price > 0 {
-			lastMarketPrice = int(lastMarketPriceData.Price)
+			lastMarketPrice = lastMarketPriceData.Price
 			lastMarketPriceAt = time.Unix(lastMarketPriceData.Timestamp, 0)
 		} else {
-			lastMarketPrice = int(dataStockMonitoring.MarketPrice)
+			lastMarketPrice = dataStockMonitoring.MarketPrice
 			lastMarketPriceAt = dataStockMonitoring.AnalysisDate
 		}
 
-		sb.WriteString(fmt.Sprintf(" 💰 Last Price: %d (%s)\n", lastMarketPrice, lastMarketPriceAt.Format("01/02 15:04")))
+		sb.WriteString(fmt.Sprintf(" 💰 Last Price: %d (%s)\n", int(lastMarketPrice), lastMarketPriceAt.Format("01/02 15:04")))
 
 		iconAction := "🔴"
 		switch dataStockMonitoring.Action {
@@ -280,7 +280,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 			iconAction = "🟡"
 		}
 
-		pnl := (dataStockMonitoring.MarketPrice - dataStockMonitoring.BuyPrice) / dataStockMonitoring.BuyPrice * 100
+		pnl := (lastMarketPrice - dataStockMonitoring.BuyPrice) / dataStockMonitoring.BuyPrice * 100
 		sb.WriteString(fmt.Sprintf(" 📈 PnL: %s\n", utils.FormatPercentage(pnl)))
 		sb.WriteString(fmt.Sprintf(" %s %s | Confidence: %d/100\n", iconAction, dataStockMonitoring.Action, int(dataStockMonitoring.ConfidenceLevel)))
 		sb.WriteString(fmt.Sprintf(" <i>🗓️ Last Analysis: %s</i>\n", dataStockMonitoring.AnalysisDate.Format("02 Jan 15:04")))
