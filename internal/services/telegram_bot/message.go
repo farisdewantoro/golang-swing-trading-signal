@@ -264,7 +264,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 
 		if lastMarketPriceData, ok := lastMarketPriceMap[position.StockCode]; ok && lastMarketPriceData.Price > 0 {
 			lastMarketPrice = lastMarketPriceData.Price
-			lastMarketPriceAt = time.Unix(lastMarketPriceData.Timestamp, 0)
+			lastMarketPriceAt = utils.TimeToWIB(time.Unix(lastMarketPriceData.Timestamp, 0))
 		} else {
 			lastMarketPrice = dataStockMonitoring.MarketPrice
 			lastMarketPriceAt = dataStockMonitoring.AnalysisDate
