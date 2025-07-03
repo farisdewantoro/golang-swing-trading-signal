@@ -35,7 +35,7 @@ func (t *TelegramBotService) handleReport(ctx context.Context, c telebot.Context
 	}
 
 	reportMessage := t.formatMessageReport(stockPositions)
-	_, errSend := t.telegramRateLimiter.Send(ctx, c, reportMessage, telebot.ModeMarkdown)
+	_, errSend := t.telegramRateLimiter.Send(ctx, c, reportMessage, telebot.ModeHTML)
 	if errSend != nil {
 		t.logger.WithError(errSend).Error("Failed to send report message")
 		return errSend

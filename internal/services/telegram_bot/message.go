@@ -627,7 +627,7 @@ Kamu belum memiliki data trading yang bisa ditampilkan.
 func (t *TelegramBotService) formatMessageReport(positions []models.StockPositionEntity) string {
 	sb := &strings.Builder{}
 	// header
-	sb.WriteString("📊 *Trading Report*\n")
+	sb.WriteString("📊 <b>Trading Report</b>\n")
 	sb.WriteString("Laporan ini menampilkan ringkasan performa dari posisi trading yang sudah selesai. Gunakan sebagai bahan evaluasi untuk strategi swing trading kamu.\n")
 
 	sbBody := &strings.Builder{}
@@ -652,9 +652,9 @@ func (t *TelegramBotService) formatMessageReport(positions []models.StockPositio
 	}
 
 	sbSummary := &strings.Builder{}
-	sbSummary.WriteString(fmt.Sprintf("\n🟢 *Win*: %d | 🔴 Lose: %d", countWin, countLose))
-	sbSummary.WriteString(fmt.Sprintf("\n📈 *Total PnL*: %+.2f%%", countPnL))
-	sbSummary.WriteString(fmt.Sprintf("\n🏆 *Win Rate*: %.2f%%", float64(countWin)/float64(len(positions))*100))
+	sbSummary.WriteString(fmt.Sprintf("\n🟢 <b>Win</b>: %d | 🔴 Lose: %d", countWin, countLose))
+	sbSummary.WriteString(fmt.Sprintf("\n📈 <b>Total PnL</b>: %+.2f%%", countPnL))
+	sbSummary.WriteString(fmt.Sprintf("\n🏆 <b>Win Rate</b>: %.2f%%", float64(countWin)/float64(len(positions))*100))
 
 	result := fmt.Sprintf("%s%s%s", sb.String(), sbSummary.String(), sbBody.String())
 	return result
