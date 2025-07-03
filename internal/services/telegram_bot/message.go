@@ -663,7 +663,7 @@ func (t *TelegramBotService) formatMessageReport(positions []models.StockPositio
 		} else {
 			countLose++
 		}
-		sbBody.WriteString(fmt.Sprintf("\n- $%s <i>(%s-%s)</i>", position.StockCode, position.BuyDate.Format("01/02 15:04"), position.ExitDate.Format("01/02 15:04")))
+		sbBody.WriteString(fmt.Sprintf("\n- $%s <i>(%s-%s)</i>", position.StockCode, position.BuyDate.Format("01/02"), position.ExitDate.Format("01/02")))
 		sbBody.WriteString(fmt.Sprintf("\n		%s PnL: %+.2f%%", icon, pnl))
 		sbBody.WriteString(fmt.Sprintf("\n		💰 Buy: %d | Exit: %d", int(position.BuyPrice), int(*position.ExitPrice)))
 	}
