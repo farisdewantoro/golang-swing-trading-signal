@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"golang-swing-trading-signal/internal/models"
+	"golang-swing-trading-signal/internal/utils"
 	"strconv"
 	"time"
 
@@ -87,6 +88,7 @@ func (t *TelegramBotService) getLastMarketPrice(ctx context.Context, stockCodes 
 			StockCode: symbol,
 			Price:     float64(price),
 			Timestamp: timestamp,
+			Time:      utils.TimeToWIB(time.Unix(timestamp, 0)),
 		}
 
 	}

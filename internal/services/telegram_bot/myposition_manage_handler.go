@@ -229,5 +229,13 @@ func (t *TelegramBotService) handleBtnBackDetailStockPositionWithParam(ctx conte
 		menu.Row(btnNews, btnBack),
 	)
 
-	return c.Edit(t.FormatMyStockPositionMessage(&positions[0]), menu, telebot.ModeMarkdown)
+	lastPrices, _ := t.getLastMarketPrice(ctx, []string{positions[0].StockCode})
+	var marketPrice *models.RedisLastPrice
+	if len(lastPrices) > 0 {
+		if val, ok := lastPrices[positions[0].StockCode]; ok {
+			marketPrice = &val
+		}
+	}
+
+	return c.Edit(t.FormatMyStockPositionMessage(&positions[0], marketPrice), menu, telebot.ModeMarkdown)
 }

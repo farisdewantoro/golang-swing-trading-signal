@@ -173,7 +173,7 @@ func (t *TelegramBotService) FormatResultSetPositionMessage(data *models.Request
 	return sb.String()
 }
 
-func (t *TelegramBotService) FormatMyStockPositionMessage(position *models.StockPositionEntity) string {
+func (t *TelegramBotService) FormatMyStockPositionMessage(position *models.StockPositionEntity, marketPrice *models.RedisLastPrice) string {
 	now := time.Now()
 	age := int(now.Sub(position.BuyDate).Hours() / 24)
 	if age < 0 {
@@ -202,9 +202,13 @@ func (t *TelegramBotService) FormatMyStockPositionMessage(position *models.Stock
 	sb.WriteString("📊 Monitoring Saham\n\n")
 	sb.WriteString(fmt.Sprintf("📦 %s\n", position.StockCode))
 	sb.WriteString("────────────────────────────────\n")
-	sb.WriteString(fmt.Sprintf("💰 Harga Beli   : %.2f\n", position.BuyPrice))
-	sb.WriteString(fmt.Sprintf("🎯 Target Jual  : %.2f %s\n", position.TakeProfitPrice, utils.FormatPercentage(gain)))
-	sb.WriteString(fmt.Sprintf("🛑 Stop Loss    : %.2f %s\n", position.StopLossPrice, utils.FormatPercentage(loss)))
+	sb.WriteString(fmt.Sprintf("💰 Harga Beli   : %d\n", int(position.BuyPrice)))
+	if marketPrice != nil && marketPrice.Price > 0 {
+		pnl := (marketPrice.Price - position.BuyPrice) / position.BuyPrice * 100
+		sb.WriteString(fmt.Sprintf("💵 Harga Pasar  : %d (%s)\n", int(marketPrice.Price), utils.FormatPercentage(pnl)))
+	}
+	sb.WriteString(fmt.Sprintf("🎯 Target Jual  : %d %s\n", int(position.TakeProfitPrice), utils.FormatPercentage(gain)))
+	sb.WriteString(fmt.Sprintf("🛑 Stop Loss    : %d %s\n", int(position.StopLossPrice), utils.FormatPercentage(loss)))
 	sb.WriteString(fmt.Sprintf("📅 Tgl Beli     : %s\n", position.BuyDate.Format("02 Jan 2006")))
 	sb.WriteString(fmt.Sprintf("⏳ Umur Posisi  : %d hari\n", age))
 	sb.WriteString(fmt.Sprintf("⌛ Sisa Waktu   : %d hari\n", remaining))
@@ -264,7 +268,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 
 		if lastMarketPriceData, ok := lastMarketPriceMap[position.StockCode]; ok && lastMarketPriceData.Price > 0 {
 			lastMarketPrice = lastMarketPriceData.Price
-			lastMarketPriceAt = utils.TimeToWIB(time.Unix(lastMarketPriceData.Timestamp, 0))
+			lastMarketPriceAt = lastMarketPriceData.Time
 		} else {
 			lastMarketPrice = dataStockMonitoring.MarketPrice
 			lastMarketPriceAt = dataStockMonitoring.AnalysisDate
