@@ -185,7 +185,7 @@ func (t *TelegramBotService) FormatMyStockPositionMessage(position *models.Stock
 	}
 
 	gain := float64(position.TakeProfitPrice-position.BuyPrice) / float64(position.BuyPrice) * 100
-	loss := float64(position.BuyPrice-position.StopLossPrice) / float64(position.BuyPrice) * 100
+	loss := float64(position.StopLossPrice-position.BuyPrice) / float64(position.BuyPrice) * 100
 
 	alertStatus := "✅ Aktif"
 	if position.PriceAlert == nil || !*position.PriceAlert {
@@ -254,7 +254,7 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 		)
 
 		sb.WriteString(fmt.Sprintf("\n• %s", position.StockCode))
-		sb.WriteString(fmt.Sprintf("\n🎯 Buy: %d | TP: %d | SL: %d\n", int(position.BuyPrice), int(position.TakeProfitPrice), int(position.StopLossPrice)))
+		sb.WriteString(fmt.Sprintf("\n 🎯 Buy: %d | TP: %d | SL: %d\n", int(position.BuyPrice), int(position.TakeProfitPrice), int(position.StopLossPrice)))
 		if len(position.StockPositionMonitorings) == 0 {
 			sb.WriteString(" ℹ️ <i>Saat ini data belum tersedia. Silakan coba lagi nanti.</i>\n")
 			continue
@@ -278,8 +278,10 @@ func (t *TelegramBotService) FormatMyPositionListMessage(positions []models.Stoc
 
 		iconAction := "🔴"
 		switch dataStockMonitoring.Action {
-		case "SELL":
+		case "TAKE_PROFIT":
 			iconAction = "🟢"
+		case "TRAIL_STOP":
+			iconAction = "🟠"
 		case "HOLD":
 			iconAction = "🟡"
 		}
